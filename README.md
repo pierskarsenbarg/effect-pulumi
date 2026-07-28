@@ -59,8 +59,9 @@ const program = Effect.gen(function* () {
 | `CustomResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, and any **top-level** args field may additionally be an `Effect` |
 | `ComponentResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, args passed through verbatim — never auto-lifted |
 | Namespace object (`aws.s3`) | Recursively proxied, lazily |
-| Invoke function (`aws.s3.getBucket`) | Passed through untouched |
-| Enums, plain values | Passed through untouched |
+| Invoke function (`aws.s3.getBucket`) | Returns `Effect<R, PulumiError>` instead of `Promise<R>` |
+| `*Output` invoke variant (`getBucketOutput`) | Passed through untouched (returns an `Output`, as upstream) |
+| Enums, plain values, sync functions | Passed through untouched |
 
 Static members survive the wrapping: `eaws.s3.Bucket.get(name, id)` (adopt an
 existing resource), `isInstance`, and any other codegen'd static forward to
@@ -76,6 +77,12 @@ Two properties worth stating explicitly:
   `Input<T>`-shaped the way codegen'd `CustomResource` args are — a component
   may do synchronous work on a bare primitive in its constructor — so passing
   an `Effect` where a component expects a primitive is a type error.
+- **Invokes start when you call them.** Whether a function is async is only
+  knowable by calling it, so `eaws.getAmi(args)` fires the invoke immediately
+  and hands back an Effect that resolves the already-in-flight call — the
+  failure still lands in the typed error channel, but `Effect.retry` re-awaits
+  the same call rather than re-invoking. To re-invoke per attempt, defer the
+  call site: `Effect.suspend(() => eaws.getAmi(args))`.
 
 Resource registration stays synchronous under the hood; `Effect.try` runs its
 thunk immediately. This removes wrapper boilerplate, not Pulumi's execution

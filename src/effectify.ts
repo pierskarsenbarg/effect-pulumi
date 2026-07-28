@@ -32,8 +32,16 @@
  *    pass through exactly as declared, since component args aren't
  *    guaranteed to be Input<T>-shaped (hand-authored, may do synchronous
  *    work on a bare primitive inside the constructor).
- *  - Everything else (invoke functions, enums, plain values) passes through
- *    untouched.
+ *  - Invoke functions (`aws.s3.getBucket`) return an Effect instead of a
+ *    Promise. There is no runtime marker for "this function is async", so
+ *    the wrapper calls the function and inspects the result: a thenable
+ *    becomes an Effect, anything else is returned as-is. That means the
+ *    invoke *starts* at the call site (see the caveat on `wrapInvokeLike`);
+ *    `*Output` invoke variants return an Output, which is not thenable, so
+ *    they pass through untouched — matching the type-level mapping, which
+ *    only rewrites Promise-returning signatures.
+ *  - Everything else (enums, plain values, non-resource classes) passes
+ *    through untouched.
  *
  * Resource registration remains synchronous under the hood — Effect.try
  * runs its thunk immediately. This only removes hand-written wrapper
@@ -63,6 +71,15 @@ const isComponentResourceConstructor = (
 
 const isPlainNamespace = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Note: `pulumi.Output` is deliberately not thenable, so `*Output` invoke
+ * variants fail this check and pass through unwrapped — keeping the runtime
+ * behaviour aligned with the type mapping, which only rewrites
+ * Promise-returning signatures. */
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { then?: unknown }).then === "function";
 
 // ---------------------------------------------------------------------------
 // Type-level mapping
@@ -97,11 +114,13 @@ export type Effectify<T> = T extends abstract new (
       ? ((...params: LiftArgsParam<P>) => Effect.Effect<R, PulumiError>) &
           StaticMembers<T>
       : T
-  : T extends (...args: any[]) => any
-    ? T
-    : T extends object
-      ? { [K in keyof T]: Effectify<T[K]> }
-      : T;
+  : T extends (...args: infer A) => Promise<infer R>
+    ? (...args: A) => Effect.Effect<R, PulumiError>
+    : T extends (...args: any[]) => any
+      ? T
+      : T extends object
+        ? { [K in keyof T]: Effectify<T[K]> }
+        : T;
 
 // ---------------------------------------------------------------------------
 // Runtime implementation
@@ -188,6 +207,39 @@ function wrapResourceCtor(Ctor: new (...args: any[]) => pulumi.Resource) {
   return withStatics(factory, Ctor);
 }
 
+/** Turn a Promise-returning invoke into an Effect-returning one, leaving
+ * synchronous functions' behaviour untouched.
+ *
+ * A Proxy over the original function (rather than a new function) so `name`,
+ * `length`, own properties and prototype all survive; only the call itself is
+ * intercepted.
+ *
+ * Caveat, stated openly: whether a function is async is only knowable by
+ * calling it, so the invoke *starts* when the factory is called — the Effect
+ * resolves an already-in-flight Promise rather than deferring the call. Two
+ * consequences:
+ *  - `Effect.retry` re-awaits the same call instead of re-invoking. To
+ *    re-invoke per attempt, wrap the call site: `Effect.suspend(() =>
+ *    eaws.getAmi(args))`.
+ *  - A discarded Effect must not surface as an unhandled rejection, so the
+ *    rejection is pre-observed on a side branch before the Effect awaits it.
+ */
+function wrapInvokeLike(fn: Function): Function {
+  return new Proxy(fn, {
+    apply(target, thisArg, args) {
+      const result = Reflect.apply(target, thisArg, args);
+      if (!isPromiseLike(result)) {
+        return result;
+      }
+      result.then(undefined, () => {});
+      return Effect.tryPromise({
+        try: () => result as Promise<unknown>,
+        catch: (cause) => new PulumiError({ cause }),
+      });
+    },
+  });
+}
+
 /** Wrapped constructors are cached so repeated reads of the same property
  * hand back the same function — identity checks like
  * `eaws.s3.Bucket === eaws.s3.Bucket` hold, and the `get` and
@@ -204,7 +256,11 @@ function effectifyValue(value: unknown): unknown {
   }
 
   if (typeof value === "function") {
-    return value; // invoke function, enum-as-function, etc.
+    const cached = wrapperCache.get(value);
+    if (cached) return cached;
+    const wrapped = wrapInvokeLike(value);
+    wrapperCache.set(value, wrapped);
+    return wrapped;
   }
 
   if (isPlainNamespace(value)) {

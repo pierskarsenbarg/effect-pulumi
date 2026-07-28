@@ -95,11 +95,25 @@ class FakeStack extends pulumi.ComponentResource {
 
 const getThing = (name: string) => `invoked:${name}`;
 
+/** Codegen-style invoke: takes an args object, returns a Promise. */
+const getThingInfo = async (args: {
+  readonly name: string;
+}): Promise<{ name: string; tier: string }> => ({
+  name: args.name,
+  tier: "STANDARD",
+});
+
+const getBroken = async (): Promise<never> => {
+  throw new Error("invoke blew up");
+};
+
 const fakeProvider = {
   storage: {
     FakeBucket,
     FakeQueue,
     getThing,
+    getThingInfo,
+    getBroken,
     Tier: { Standard: "STANDARD", Cold: "COLD" } as const,
   },
   compute: {
@@ -123,10 +137,15 @@ describe("effectify — namespace traversal", () => {
     })
   );
 
-  it.effect("passes non-resource functions (invokes) through untouched", () =>
+  it.effect("preserves sync functions' behaviour and surface", () =>
     Effect.gen(function* () {
-      expect(eprovider.storage.getThing).toBe(getThing);
+      // Sync functions do get wrapped (async-ness is only detectable by
+      // calling), but the Proxy leaves behaviour, name, length and identity
+      // across reads intact.
       expect(eprovider.storage.getThing("x")).toBe("invoked:x");
+      expect(eprovider.storage.getThing.name).toBe("getThing");
+      expect(eprovider.storage.getThing.length).toBe(getThing.length);
+      expect(eprovider.storage.getThing).toBe(eprovider.storage.getThing);
     })
   );
 
@@ -184,6 +203,54 @@ describe("effectify — wrapper identity and statics", () => {
       });
       expect(eprovider.storage.FakeBucket.isInstance(bucket)).toBe(true);
       expect(bucket instanceof eprovider.storage.FakeBucket).toBe(true);
+    })
+  );
+});
+
+describe("effectify — invoke wrapping", () => {
+  it.effect("returns an Effect that resolves the invoke's result", () =>
+    Effect.gen(function* () {
+      const info = yield* eprovider.storage.getThingInfo({ name: "assets" });
+      expect(info).toEqual({ name: "assets", tier: "STANDARD" });
+    })
+  );
+
+  it.effect("surfaces a rejected invoke as a PulumiError", () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(eprovider.storage.getBroken());
+      expect(error).toBeInstanceOf(PulumiError);
+      expect((error.cause as Error).message).toContain("invoke blew up");
+    })
+  );
+
+  it("does not leak an unhandled rejection when the Effect is discarded", async () => {
+    // The invoke starts at the call site, so a caller who drops the Effect
+    // without running it must not crash the process when the call fails.
+    const seen: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      seen.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      void eprovider.storage.getBroken();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(seen).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it.effect("leaves non-resource classes constructible, statics intact", () =>
+    Effect.gen(function* () {
+      class Helper {
+        constructor(readonly x: number) {}
+        static make(x: number): Helper {
+          return new Helper(x);
+        }
+      }
+      const wrapped = effectify({ Helper });
+      expect(new wrapped.Helper(2).x).toBe(2);
+      expect(wrapped.Helper.make(3)).toBeInstanceOf(Helper);
     })
   );
 });
@@ -488,6 +555,15 @@ describe("effectify — type level", () => {
         "typed-adopted",
         "typed-adopted-id"
       );
+
+      // Promise-returning invokes are typed as Effects…
+      const infoEffect: Effect.Effect<
+        { name: string; tier: string },
+        PulumiError
+      > = eprovider.storage.getThingInfo({ name: "typed" });
+      void infoEffect;
+      // …while sync helpers keep their plain signature.
+      const _plain: string = eprovider.storage.getThing("typed");
     })
   );
 });
