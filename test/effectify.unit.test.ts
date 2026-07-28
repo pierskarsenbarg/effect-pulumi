@@ -206,6 +206,9 @@ describe("effectify — CustomResource wrapping", () => {
       expect(error).toBeInstanceOf(PulumiError);
       expect(error._tag).toBe("PulumiError");
       expect((error.cause as Error).message).toContain("explode was set");
+      // `.message` is derived from the cause, so plain (non-Effect) logging
+      // and test diffs show the failure rather than an empty string.
+      expect(error.message).toContain("explode was set");
     })
   );
 
