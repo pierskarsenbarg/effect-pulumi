@@ -1,0 +1,69 @@
+{
+  "name": "effect-pulumi",
+  "version": "0.1.0",
+  "description": "Effect bindings for Pulumi — wrap a provider package once and get Effect-returning resource factories, typed errors, and structured deploy results.",
+  "keywords": [
+    "effect",
+    "effect-ts",
+    "pulumi",
+    "infrastructure-as-code",
+    "iac",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Piers Karsenbarg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pierskarsenbarg/effect-pulumi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pierskarsenbarg/effect-pulumi/issues"
+  },
+  "homepage": "https://github.com/pierskarsenbarg/effect-pulumi#readme",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:live": "EFFECT_PULUMI_RUN_LIVE_TESTS=1 vitest run --config vitest.live.config.ts",
+    "test:package": "vitest run --config vitest.packaging.config.ts",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run test:package"
+  },
+  "peerDependencies": {
+    "@pulumi/pulumi": "^3.0.0",
+    "effect": "^3.0.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.30.0",
+    "@pulumi/aws": "^7.39.0",
+    "@pulumi/pulumi": "^3.254.0",
+    "effect": "^3.22.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

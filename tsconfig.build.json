@@ -1,0 +1,19 @@
+{
+  // Src-scoped config. tsup consumes this (see tsup.config.ts) so that
+  // generated .d.ts files are built from the library only — with the
+  // type-check config's wider include, tests and examples would leak into the
+  // published declarations.
+  //
+  // tsup drives the actual emit, so the options below mainly matter as a
+  // working `tsc -p tsconfig.build.json` fallback for a types-only build.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src"]
+}

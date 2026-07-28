@@ -1,0 +1,17 @@
+{
+  // Type-checking config: covers everything (src, examples, tests) so editors
+  // and `npm run typecheck` see the whole project. Emits nothing — the
+  // shippable build is tsconfig.build.json, which is scoped to src only.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": false,
+    "noEmit": true
+  },
+  "include": ["src", "examples", "test"],
+  "exclude": ["node_modules", "dist"]
+}
