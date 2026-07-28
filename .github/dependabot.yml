@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+
+    groups:
+      # @pulumi/aws is regenerated from the AWS provider constantly (often
+      # several releases a week), so ungrouped these would dominate the PR
+      # queue on their own.
+      pulumi:
+        patterns:
+          - "@pulumi/*"
+        update-types:
+          - minor
+          - patch
+
+      # These three are peer-coupled: @effect/vitest pins both `effect` and
+      # `vitest` in its peerDependencies, so bumping any one of them alone
+      # can leave the tree unsatisfiable. Keep them in a single PR.
+      effect:
+        patterns:
+          - "effect"
+          - "@effect/*"
+          - "vitest"
+        update-types:
+          - minor
+          - patch
+
+    # Majors are deliberately left out of the groups above so each one
+    # arrives as its own PR — a @pulumi/aws or vitest major is a real
+    # migration, not something to review alongside routine patches.
