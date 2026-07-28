@@ -2,9 +2,9 @@
  * Orchestration tests for src/automation.ts, against a mocked Automation API.
  *
  * automation.ts is a thin Effect wrapper over LocalWorkspace, so what it
- * actually owns is the sequencing (createOrSelectStack → config → preview →
- * up), the short-circuiting when a stage fails, and the `stage` tag on every
- * AutomationError. All of that is covered here without a Pulumi CLI.
+ * actually owns is the sequencing, the short-circuiting when a stage fails,
+ * the `stage` tag on every AutomationError, and the options it forwards. All
+ * of that is covered here without a Pulumi CLI.
  *
  * What this deliberately cannot prove: that the real Automation API accepts
  * the arguments we pass it. Only test/examples.live.test.ts does that, and it
@@ -15,10 +15,14 @@ import { it } from "@effect/vitest";
 import { Effect } from "effect";
 import {
   AutomationError,
+  createOrSelectStack,
   deploy,
   destroyStack,
+  previewStack,
   removeStack,
+  setStackConfig,
   teardownStack,
+  upStack,
 } from "../src/index.js";
 
 type Stage =
@@ -32,50 +36,53 @@ type Stage =
 const h = vi.hoisted(() => ({
   calls: [] as string[],
   failAt: null as string | null,
-  createOpts: undefined as any,
+  createArgs: undefined as any,
+  createWorkspaceOpts: undefined as any,
+  passed: {} as Record<string, unknown>,
   config: {} as Record<string, unknown>,
   upResult: { summary: { result: "succeeded" }, outputs: { k: { value: "v" } } },
+  previewResult: { changeSummary: { create: 1 } },
 }));
 
 vi.mock("@pulumi/pulumi/automation/index.js", () => {
-  const record = (name: string) => {
+  const record = (name: string, opts?: unknown) => {
     h.calls.push(name);
+    h.passed[name] = opts;
     if (h.failAt === name) throw new Error(`boom:${name}`);
-  };
-
-  const workspace = {
-    removeStack: async (stackName: string) => {
-      record("removeStack");
-      h.calls.push(`removeStack:${stackName}`);
-    },
   };
 
   const stack = {
     name: "the-stack",
-    workspace,
+    workspace: {
+      removeStack: async (stackName: string, opts?: unknown) => {
+        record("removeStack", opts);
+        h.calls.push(`removeStack:${stackName}`);
+      },
+    },
     setConfig: async (key: string, value: unknown) => {
       record("setConfig");
       h.config[key] = value;
       h.calls.push(`setConfig:${key}`);
     },
-    preview: async () => {
-      record("preview");
-      return { summary: {} };
+    preview: async (opts?: unknown) => {
+      record("preview", opts);
+      return h.previewResult;
     },
-    up: async () => {
-      record("up");
+    up: async (opts?: unknown) => {
+      record("up", opts);
       return h.upResult;
     },
-    destroy: async () => {
-      record("destroy");
+    destroy: async (opts?: unknown) => {
+      record("destroy", opts);
       return { summary: { result: "succeeded" } };
     },
   };
 
   return {
     LocalWorkspace: {
-      createOrSelectStack: async (opts: unknown) => {
-        h.createOpts = opts;
+      createOrSelectStack: async (args: unknown, wsOpts?: unknown) => {
+        h.createArgs = args;
+        h.createWorkspaceOpts = wsOpts;
         record("createOrSelectStack");
         return stack;
       },
@@ -83,7 +90,7 @@ vi.mock("@pulumi/pulumi/automation/index.js", () => {
   };
 });
 
-const baseOpts = {
+const inlineOpts = {
   stackName: "the-stack",
   projectName: "the-project",
   program: async () => ({ out: 1 }),
@@ -92,44 +99,83 @@ const baseOpts = {
 /** Stage names only, dropping the `setConfig:<key>` detail entries. */
 const stages = () => h.calls.filter((c) => !c.includes(":"));
 
+const getStack = () => deploy(inlineOpts).pipe(Effect.map((d) => d.stack));
+
 beforeEach(() => {
   h.calls = [];
   h.failAt = null;
-  h.createOpts = undefined;
+  h.createArgs = undefined;
+  h.createWorkspaceOpts = undefined;
+  h.passed = {};
   h.config = {};
 });
 
-describe("deploy — lifecycle sequencing", () => {
-  it.effect("runs createOrSelectStack, preview, then up", () =>
+describe("createOrSelectStack", () => {
+  it.effect("passes inline program args through", () =>
     Effect.gen(function* () {
-      yield* deploy(baseOpts);
+      yield* createOrSelectStack(inlineOpts);
+      expect(h.createArgs).toEqual({
+        stackName: "the-stack",
+        projectName: "the-project",
+        program: inlineOpts.program,
+      });
+    })
+  );
+
+  it.effect("supports a local program via workDir", () =>
+    Effect.gen(function* () {
+      yield* createOrSelectStack({
+        stackName: "the-stack",
+        workDir: "/tmp/project",
+      });
+      // Must be the LocalProgramArgs shape — no projectName, no program.
+      expect(h.createArgs).toEqual({
+        stackName: "the-stack",
+        workDir: "/tmp/project",
+      });
+    })
+  );
+
+  it.effect("forwards workspace options", () =>
+    Effect.gen(function* () {
+      const workspaceOptions = { envVars: { FOO: "bar" } };
+      yield* createOrSelectStack({ ...inlineOpts, workspaceOptions });
+      expect(h.createWorkspaceOpts).toBe(workspaceOptions);
+    })
+  );
+});
+
+describe("deploy — lifecycle sequencing", () => {
+  it.effect("runs createOrSelectStack then up, with no preview by default", () =>
+    Effect.gen(function* () {
+      const { preview } = yield* deploy(inlineOpts);
+      // Regression guard: previewing before every up does the work twice.
+      expect(stages()).toEqual(["createOrSelectStack", "up"]);
+      expect(preview).toBeUndefined();
+    })
+  );
+
+  it.effect("previews before up when asked, and returns the result", () =>
+    Effect.gen(function* () {
+      const { preview } = yield* deploy({ ...inlineOpts, preview: true });
       expect(stages()).toEqual(["createOrSelectStack", "preview", "up"]);
+      // Regression guard: the preview result used to be discarded.
+      expect(preview).toBe(h.previewResult);
     })
   );
 
   it.effect("returns the stack handle alongside the up result", () =>
     Effect.gen(function* () {
-      const { stack, result } = yield* deploy(baseOpts);
+      const { stack, result } = yield* deploy(inlineOpts);
       expect(stack.name).toBe("the-stack");
       expect(result).toBe(h.upResult);
     })
   );
 
-  it.effect("forwards stackName, projectName and program", () =>
-    Effect.gen(function* () {
-      yield* deploy(baseOpts);
-      expect(h.createOpts).toMatchObject({
-        stackName: "the-stack",
-        projectName: "the-project",
-        program: baseOpts.program,
-      });
-    })
-  );
-
-  it.effect("applies every config entry, before preview", () =>
+  it.effect("applies every config entry, before up", () =>
     Effect.gen(function* () {
       yield* deploy({
-        ...baseOpts,
+        ...inlineOpts,
         config: {
           region: { value: "eu-west-2" },
           token: { value: "s3cret", secret: true },
@@ -144,7 +190,6 @@ describe("deploy — lifecycle sequencing", () => {
         "createOrSelectStack",
         "setConfig",
         "setConfig",
-        "preview",
         "up",
       ]);
     })
@@ -152,8 +197,73 @@ describe("deploy — lifecycle sequencing", () => {
 
   it.effect("skips setConfig entirely when no config is given", () =>
     Effect.gen(function* () {
-      yield* deploy(baseOpts);
+      yield* deploy(inlineOpts);
       expect(stages()).not.toContain("setConfig");
+    })
+  );
+});
+
+describe("options passthrough", () => {
+  it.effect("forwards UpOptions, including onOutput", () =>
+    Effect.gen(function* () {
+      const up = { onOutput: () => {}, message: "ship it" };
+      yield* deploy({ ...inlineOpts, up });
+      expect(h.passed.up).toBe(up);
+    })
+  );
+
+  it.effect("forwards PreviewOptions when preview is an options object", () =>
+    Effect.gen(function* () {
+      const preview = { onOutput: () => {}, expectNoChanges: true };
+      yield* deploy({ ...inlineOpts, preview });
+      expect(h.passed.preview).toBe(preview);
+    })
+  );
+
+  it.effect("passes no preview options when preview is just `true`", () =>
+    Effect.gen(function* () {
+      yield* deploy({ ...inlineOpts, preview: true });
+      expect(h.passed.preview).toBeUndefined();
+    })
+  );
+
+  it.effect("never substitutes a silencing default for onOutput", () =>
+    Effect.gen(function* () {
+      // Regression guard: up/preview/destroy each used to hardcode
+      // `onOutput: () => {}`, so nothing could be streamed to the caller.
+      yield* deploy(inlineOpts);
+      expect(h.passed.up).toBeUndefined();
+
+      const stack = yield* getStack();
+      yield* destroyStack(stack);
+      expect(h.passed.destroy).toBeUndefined();
+    })
+  );
+
+  it.effect("forwards DestroyOptions and RemoveOptions", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      const destroyOpts = { onOutput: () => {} };
+      const removeOpts = { preserveConfig: true };
+
+      yield* teardownStack(stack, { destroy: destroyOpts, remove: removeOpts });
+
+      expect(h.passed.destroy).toBe(destroyOpts);
+      expect(h.passed.removeStack).toBe(removeOpts);
+    })
+  );
+
+  it.effect("forwards options through the standalone primitives", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      const upOpts = { message: "direct" };
+      const previewOpts = { message: "plan" };
+
+      yield* upStack(stack, upOpts);
+      yield* previewStack(stack, previewOpts);
+
+      expect(h.passed.up).toBe(upOpts);
+      expect(h.passed.preview).toBe(previewOpts);
     })
   );
 });
@@ -192,7 +302,7 @@ describe("deploy — failure tagging and short-circuiting", () => {
         h.failAt = failAt;
 
         const error = yield* Effect.flip(
-          deploy({ ...baseOpts, config: { k: { value: "v" } } })
+          deploy({ ...inlineOpts, preview: true, config: { k: { value: "v" } } })
         );
 
         expect(error).toBeInstanceOf(AutomationError);
@@ -204,12 +314,24 @@ describe("deploy — failure tagging and short-circuiting", () => {
       })
     );
   }
+
+  it.effect("tags setStackConfig failures independently of deploy", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      h.failAt = "setConfig";
+
+      const error = yield* Effect.flip(
+        setStackConfig(stack, { a: { value: "1" } })
+      );
+      expect(error.stage).toBe("setConfig");
+    })
+  );
 });
 
 describe("teardown", () => {
   it.effect("destroyStack destroys and leaves the stack registered", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.calls = [];
 
       yield* destroyStack(stack);
@@ -221,7 +343,7 @@ describe("teardown", () => {
 
   it.effect("removeStack deletes the stack by name", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.calls = [];
 
       yield* removeStack(stack);
@@ -233,7 +355,7 @@ describe("teardown", () => {
 
   it.effect("teardownStack destroys first, then removes", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.calls = [];
 
       const result = yield* teardownStack(stack);
@@ -245,7 +367,7 @@ describe("teardown", () => {
 
   it.effect("teardownStack does not remove a stack it failed to destroy", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.calls = [];
       h.failAt = "destroy";
 
@@ -259,7 +381,7 @@ describe("teardown", () => {
 
   it.effect("tags a destroy failure", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.failAt = "destroy";
 
       const error = yield* Effect.flip(destroyStack(stack));
@@ -270,7 +392,7 @@ describe("teardown", () => {
 
   it.effect("tags a removeStack failure", () =>
     Effect.gen(function* () {
-      const { stack } = yield* deploy(baseOpts);
+      const stack = yield* getStack();
       h.failAt = "removeStack";
 
       const error = yield* Effect.flip(removeStack(stack));

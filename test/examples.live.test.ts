@@ -18,18 +18,25 @@ describeLive("examples (live, real Automation API deploy)", () => {
       const stackName = `test-${Date.now()}`;
       const envName = `live-test-${Date.now()}`;
 
+      // Stream the CLI's output. A live deploy runs for minutes, and when it
+      // fails this is the only thing that explains why — the thrown error
+      // alone rarely does.
+      const onOutput = (out: string) => process.stdout.write(out);
+
       const managedDeploy = Effect.acquireRelease(
         deploy({
           stackName,
           projectName: "effect-pulumi-examples",
           program: inlineProgram(envName),
+          up: { onOutput },
         }),
         // Cleanup always runs on scope close, success or failure. Destroy
         // *and* remove: the stack name is unique per run, so destroying
         // alone would leave a trail of empty stacks in the backend. Any
         // teardown failure is ignored so it never masks a real assertion
         // failure.
-        ({ stack }) => teardownStack(stack).pipe(Effect.ignore)
+        ({ stack }) =>
+          teardownStack(stack, { destroy: { onOutput } }).pipe(Effect.ignore)
       );
 
       return Effect.scoped(

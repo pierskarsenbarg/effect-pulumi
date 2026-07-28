@@ -78,16 +78,42 @@ model.
 
 ## Automation API
 
-`deploy` runs `createOrSelectStack` → config → `preview` → `up` as one
-pipeline, returning the stack handle alongside the result so callers can tear
-down without re-selecting.
+`deploy` runs `createOrSelectStack` → config → `up` as one pipeline, returning
+the stack handle alongside the result so callers can tear down without
+re-selecting.
 
 ```ts
 const exit = await Effect.runPromiseExit(
-  deploy({ stackName, projectName, program: inlineProgram("dev") })
+  deploy({
+    stackName,
+    projectName,
+    program: inlineProgram("dev"),
+    up: { onOutput: (out) => process.stdout.write(out) },
+  })
 );
 // Exit/Cause instead of a thrown, stringified error
 ```
+
+Every operation forwards the matching Pulumi options type — `UpOptions`,
+`PreviewOptions`, `DestroyOptions`, `RemoveOptions`. Pass `onOutput` to stream
+the CLI's progress; without it a multi-minute deploy prints nothing until it
+finishes. Stacks can be inline programs (`projectName` + `program`) or an
+existing project on disk (`workDir`).
+
+Previewing is opt-in via `preview: true` (or a `PreviewOptions` object), and
+its result comes back on `DeployResult.preview`. It is off by default because
+a preview is a full engine run against the provider, so previewing and then
+immediately upping does the work twice — and `up` surfaces the same failures.
+
+For anything beyond that, compose the exported primitives directly:
+`createOrSelectStack`, `setStackConfig`, `previewStack`, `upStack`,
+`destroyStack`, `removeStack`, `teardownStack`.
+
+Teardown is two steps. `destroyStack` removes the resources but leaves the
+stack registered with the backend; `teardownStack` destroys and then deletes
+it, which is what you want for per-run stacks. `RemoveOptions.force` deletes a
+stack while leaving its resources alive and billing — it is reachable, but it
+orphans them.
 
 Failures are typed: `PulumiError` for resource construction and Output
 resolution, `AutomationError` (tagged with the failing `stage`) for lifecycle

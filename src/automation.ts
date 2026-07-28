@@ -1,36 +1,80 @@
 import type {
+  ConfigValue,
+  DestroyOptions,
   DestroyResult,
+  LocalWorkspaceOptions,
+  PreviewOptions,
+  PreviewResult,
+  PulumiFn,
+  RemoveOptions,
   Stack,
+  UpOptions,
   UpResult,
 } from "@pulumi/pulumi/automation/index.js";
 import { LocalWorkspace } from "@pulumi/pulumi/automation/index.js";
 import { Effect } from "effect";
 import { AutomationError } from "./errors.js";
 
-export interface DeployOptions {
+// ---------------------------------------------------------------------------
+// Primitives
+//
+// Each wraps one Automation API call, tagging failures with the stage they
+// came from. They are exported individually so callers can assemble their own
+// lifecycle — `deploy` below is only the common path.
+//
+// Every operation takes the matching Pulumi options type. That includes
+// `onOutput`: pass it to stream the CLI's progress as it happens. Without it
+// nothing is printed during what may be a multi-minute operation (the text is
+// still captured on the result's `stdout`, and on the error when one is
+// thrown, but only once the operation has finished).
+// ---------------------------------------------------------------------------
+
+/** Arguments for an inline program — the Pulumi program is a function in this
+ * process. */
+export interface InlineStackOptions {
   readonly stackName: string;
   readonly projectName: string;
-  readonly program: () => Promise<Record<string, unknown> | void>;
-  readonly config?: Record<string, { value: string; secret?: boolean }>;
+  readonly program: PulumiFn;
+  readonly workspaceOptions?: LocalWorkspaceOptions;
 }
 
-const createOrSelectStack = (
-  opts: DeployOptions
+/** Arguments for a local program — an existing Pulumi project on disk. */
+export interface LocalStackOptions {
+  readonly stackName: string;
+  readonly workDir: string;
+  readonly workspaceOptions?: LocalWorkspaceOptions;
+}
+
+export type StackOptions = InlineStackOptions | LocalStackOptions;
+
+const isLocal = (opts: StackOptions): opts is LocalStackOptions =>
+  "workDir" in opts;
+
+export const createOrSelectStack = (
+  opts: StackOptions
 ): Effect.Effect<Stack, AutomationError> =>
   Effect.tryPromise({
     try: () =>
-      LocalWorkspace.createOrSelectStack({
-        stackName: opts.stackName,
-        projectName: opts.projectName,
-        program: opts.program,
-      }),
+      isLocal(opts)
+        ? LocalWorkspace.createOrSelectStack(
+            { stackName: opts.stackName, workDir: opts.workDir },
+            opts.workspaceOptions
+          )
+        : LocalWorkspace.createOrSelectStack(
+            {
+              stackName: opts.stackName,
+              projectName: opts.projectName,
+              program: opts.program,
+            },
+            opts.workspaceOptions
+          ),
     catch: (cause) =>
       new AutomationError({ stage: "createOrSelectStack", cause }),
   });
 
-const applyConfig = (
+export const setStackConfig = (
   stack: Stack,
-  config: DeployOptions["config"]
+  config: Record<string, ConfigValue> | undefined
 ): Effect.Effect<void, AutomationError> =>
   Effect.gen(function* () {
     if (!config) return;
@@ -42,39 +86,47 @@ const applyConfig = (
     }
   });
 
-const previewStack = (stack: Stack) =>
+export const previewStack = (
+  stack: Stack,
+  opts?: PreviewOptions
+): Effect.Effect<PreviewResult, AutomationError> =>
   Effect.tryPromise({
-    try: () => stack.preview({ onOutput: () => {} }),
+    try: () => stack.preview(opts),
     catch: (cause) => new AutomationError({ stage: "preview", cause }),
   });
 
-const upStack = (stack: Stack): Effect.Effect<UpResult, AutomationError> =>
+export const upStack = (
+  stack: Stack,
+  opts?: UpOptions
+): Effect.Effect<UpResult, AutomationError> =>
   Effect.tryPromise({
-    try: () => stack.up({ onOutput: () => {} }),
+    try: () => stack.up(opts),
     catch: (cause) => new AutomationError({ stage: "up", cause }),
   });
 
 /** Destroy the stack's resources. The stack itself remains registered with
  * the backend — see `removeStack` / `teardownStack` to delete it too. */
 export const destroyStack = (
-  stack: Stack
+  stack: Stack,
+  opts?: DestroyOptions
 ): Effect.Effect<DestroyResult, AutomationError> =>
   Effect.tryPromise({
-    try: () => stack.destroy({ onOutput: () => {} }),
+    try: () => stack.destroy(opts),
     catch: (cause) => new AutomationError({ stage: "destroy", cause }),
   });
 
 /** Delete the stack and its configuration and history from the backend.
  *
- * This does not destroy resources — run `destroyStack` first, or the
- * resources are orphaned. Pulumi refuses to remove a stack that still has
- * resources unless `force` is set, which is exactly that orphaning, so it is
- * deliberately not exposed here. */
+ * This does not destroy resources — run `destroyStack` first, or use
+ * `teardownStack`. Pulumi refuses to remove a stack that still has resources
+ * unless `RemoveOptions.force` is set, and forcing it orphans them: they keep
+ * existing and billing with nothing tracking them. */
 export const removeStack = (
-  stack: Stack
+  stack: Stack,
+  opts?: RemoveOptions
 ): Effect.Effect<void, AutomationError> =>
   Effect.tryPromise({
-    try: () => stack.workspace.removeStack(stack.name),
+    try: () => stack.workspace.removeStack(stack.name, opts),
     catch: (cause) => new AutomationError({ stage: "removeStack", cause }),
   });
 
@@ -84,24 +136,57 @@ export const removeStack = (
  * stacks per-run (ephemeral environments, tests naming stacks by timestamp)
  * accumulates them in the backend. */
 export const teardownStack = (
-  stack: Stack
+  stack: Stack,
+  opts?: { readonly destroy?: DestroyOptions; readonly remove?: RemoveOptions }
 ): Effect.Effect<DestroyResult, AutomationError> =>
   Effect.gen(function* () {
-    const result = yield* destroyStack(stack);
-    yield* removeStack(stack);
+    const result = yield* destroyStack(stack, opts?.destroy);
+    yield* removeStack(stack, opts?.remove);
     return result;
   });
 
-/** Full lifecycle as one Effect pipeline: select stack, apply config,
- * preview, up. Returns the stack handle alongside the up() result so
- * callers (tests especially) can destroy() afterwards without re-selecting. */
+// ---------------------------------------------------------------------------
+// Convenience lifecycle
+// ---------------------------------------------------------------------------
+
+export type DeployOptions = StackOptions & {
+  readonly config?: Record<string, ConfigValue>;
+  readonly up?: UpOptions;
+  /** Run `preview` before `up`, returning its result.
+   *
+   * Off by default: a preview is a full engine run against the provider, so
+   * previewing and then immediately upping does the work twice. `up` reports
+   * the same failures, so this earns its cost only when you want the plan
+   * itself. */
+  readonly preview?: PreviewOptions | boolean;
+};
+
+export interface DeployResult {
+  readonly stack: Stack;
+  readonly result: UpResult;
+  /** Present only when `preview` was requested. */
+  readonly preview?: PreviewResult;
+}
+
+/** Select or create the stack, apply config, optionally preview, then up.
+ *
+ * Returns the stack handle alongside the results so callers can tear down
+ * afterwards without re-selecting. For anything more involved, compose the
+ * exported primitives directly. */
 export const deploy = (
   opts: DeployOptions
-): Effect.Effect<{ stack: Stack; result: UpResult }, AutomationError> =>
+): Effect.Effect<DeployResult, AutomationError> =>
   Effect.gen(function* () {
     const stack = yield* createOrSelectStack(opts);
-    yield* applyConfig(stack, opts.config);
-    yield* previewStack(stack);
-    const result = yield* upStack(stack);
-    return { stack, result };
+    yield* setStackConfig(stack, opts.config);
+
+    const preview = opts.preview
+      ? yield* previewStack(
+          stack,
+          typeof opts.preview === "boolean" ? undefined : opts.preview
+        )
+      : undefined;
+
+    const result = yield* upStack(stack, opts.up);
+    return { stack, result, preview };
   });
