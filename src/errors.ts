@@ -13,6 +13,7 @@ export class AutomationError extends Data.TaggedError("AutomationError")<{
     | "setConfig"
     | "up"
     | "preview"
-    | "destroy";
+    | "destroy"
+    | "removeStack";
   readonly cause: unknown;
 }> {}

@@ -54,12 +54,42 @@ const upStack = (stack: Stack): Effect.Effect<UpResult, AutomationError> =>
     catch: (cause) => new AutomationError({ stage: "up", cause }),
   });
 
+/** Destroy the stack's resources. The stack itself remains registered with
+ * the backend — see `removeStack` / `teardownStack` to delete it too. */
 export const destroyStack = (
   stack: Stack
 ): Effect.Effect<DestroyResult, AutomationError> =>
   Effect.tryPromise({
     try: () => stack.destroy({ onOutput: () => {} }),
     catch: (cause) => new AutomationError({ stage: "destroy", cause }),
+  });
+
+/** Delete the stack and its configuration and history from the backend.
+ *
+ * This does not destroy resources — run `destroyStack` first, or the
+ * resources are orphaned. Pulumi refuses to remove a stack that still has
+ * resources unless `force` is set, which is exactly that orphaning, so it is
+ * deliberately not exposed here. */
+export const removeStack = (
+  stack: Stack
+): Effect.Effect<void, AutomationError> =>
+  Effect.tryPromise({
+    try: () => stack.workspace.removeStack(stack.name),
+    catch: (cause) => new AutomationError({ stage: "removeStack", cause }),
+  });
+
+/** Full teardown: destroy the resources, then delete the stack.
+ *
+ * `destroyStack` alone leaves an empty stack behind, so anything creating
+ * stacks per-run (ephemeral environments, tests naming stacks by timestamp)
+ * accumulates them in the backend. */
+export const teardownStack = (
+  stack: Stack
+): Effect.Effect<DestroyResult, AutomationError> =>
+  Effect.gen(function* () {
+    const result = yield* destroyStack(stack);
+    yield* removeStack(stack);
+    return result;
   });
 
 /** Full lifecycle as one Effect pipeline: select stack, apply config,

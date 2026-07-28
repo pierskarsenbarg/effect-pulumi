@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
-import { deploy, destroyStack } from "../src/index.js";
+import { deploy, teardownStack } from "../src/index.js";
 import { inlineProgram } from "../examples/s3-bucket.js";
 
 // Gate: only run when explicitly opted in, since this hits a real cloud
@@ -24,9 +24,12 @@ describeLive("examples (live, real Automation API deploy)", () => {
           projectName: "effect-pulumi-examples",
           program: inlineProgram(envName),
         }),
-        // Cleanup always runs on scope close, success or failure. Ignore
-        // any destroy failure so it never masks the real assertion failure.
-        ({ stack }) => destroyStack(stack).pipe(Effect.ignore)
+        // Cleanup always runs on scope close, success or failure. Destroy
+        // *and* remove: the stack name is unique per run, so destroying
+        // alone would leave a trail of empty stacks in the backend. Any
+        // teardown failure is ignored so it never masks a real assertion
+        // failure.
+        ({ stack }) => teardownStack(stack).pipe(Effect.ignore)
       );
 
       return Effect.scoped(
