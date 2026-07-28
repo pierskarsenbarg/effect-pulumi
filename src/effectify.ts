@@ -21,9 +21,13 @@
  *    invoke function" (e.g. `aws.s3.getBucket`).
  *  - Namespace objects get recursively proxied (lazily, memoized).
  *  - CustomResource constructors get wrapped so any field in their args
- *    object may *additionally* be an Effect — resolved (in sequence, via
- *    Effect.gen) before construction. This is safe because codegen
- *    guarantees CustomResource args are always Record<string, Input<T>>.
+ *    object may *additionally* be an Effect — resolved (concurrently, they
+ *    are independent by construction) before construction. This is safe
+ *    because codegen guarantees CustomResource args are always
+ *    Record<string, Input<T>>.
+ *  - Wrapped constructors keep their static members: `Bucket.get(...)`,
+ *    `Bucket.isInstance(...)` and friends forward to the original class, so
+ *    the wrapped package can be the only import a program needs.
  *  - ComponentResource constructors get wrapped with no arg-lifting — args
  *    pass through exactly as declared, since component args aren't
  *    guaranteed to be Input<T>-shaped (hand-authored, may do synchronous
@@ -79,13 +83,19 @@ type LiftArgsParam<P extends readonly unknown[]> = {
   [K in keyof P]: K extends "1" ? LiftedArgs<P[K]> : P[K];
 };
 
+/** The class's static side, minus `prototype`: `keyof` on a constructor type
+ * yields exactly the statics (own and inherited, e.g. codegen'd `get` and
+ * `isInstance`), which the runtime wrapper forwards to the original class. */
+type StaticMembers<T> = Omit<T, "prototype">;
+
 export type Effectify<T> = T extends abstract new (
   ...params: infer P
 ) => infer R
   ? R extends pulumi.ComponentResource
-    ? (...params: P) => Effect.Effect<R, PulumiError>
+    ? ((...params: P) => Effect.Effect<R, PulumiError>) & StaticMembers<T>
     : R extends pulumi.CustomResource
-      ? (...params: LiftArgsParam<P>) => Effect.Effect<R, PulumiError>
+      ? ((...params: LiftArgsParam<P>) => Effect.Effect<R, PulumiError>) &
+          StaticMembers<T>
       : T
   : T extends (...args: any[]) => any
     ? T
@@ -115,16 +125,20 @@ function resolveLiftedArgs(
     return Effect.succeed(args);
   }
 
-  return Effect.gen(function* () {
-    const resolved: Record<string, unknown> = { ...args };
-    for (const [key, effectValue] of effectEntries) {
-      resolved[key] = yield* (effectValue as Effect.Effect<
-        unknown,
-        PulumiError
-      >);
-    }
-    return resolved;
-  });
+  // The arg Effects are independent of one another, so resolve them
+  // concurrently — it matters when several of them await slow Outputs.
+  return Effect.map(
+    Effect.all(
+      effectEntries.map(([key, effectValue]) =>
+        Effect.map(
+          effectValue as Effect.Effect<unknown, PulumiError>,
+          (resolved) => [key, resolved] as const
+        )
+      ),
+      { concurrency: "unbounded" }
+    ),
+    (resolved) => ({ ...args, ...Object.fromEntries(resolved) })
+  );
 }
 
 function wrapCustomResourceCtor(
@@ -150,18 +164,43 @@ function wrapComponentResourceCtor(
     });
 }
 
+/** Forward static members (codegen'd `get`, `isInstance`, …) from the class
+ * onto the factory. The factory's own and inherited properties (`name`,
+ * `length`, `call`, …) win; anything else falls through to the class, so new
+ * statics keep working without being enumerated here. A bonus of forwarding
+ * `prototype` is that `x instanceof wrapped` still works. */
+const withStatics = <F extends object>(factory: F, Ctor: Function): F =>
+  new Proxy(factory, {
+    get: (target, prop, receiver) =>
+      Reflect.has(target, prop)
+        ? Reflect.get(target, prop, receiver)
+        : Reflect.get(Ctor, prop),
+    has: (target, prop) =>
+      Reflect.has(target, prop) || Reflect.has(Ctor, prop),
+  });
+
 function wrapResourceCtor(Ctor: new (...args: any[]) => pulumi.Resource) {
-  if (isComponentResourceConstructor(Ctor)) {
-    return wrapComponentResourceCtor(Ctor);
-  }
-  return wrapCustomResourceCtor(
-    Ctor as new (...args: any[]) => pulumi.CustomResource
-  );
+  const factory = isComponentResourceConstructor(Ctor)
+    ? wrapComponentResourceCtor(Ctor)
+    : wrapCustomResourceCtor(
+        Ctor as new (...args: any[]) => pulumi.CustomResource
+      );
+  return withStatics(factory, Ctor);
 }
+
+/** Wrapped constructors are cached so repeated reads of the same property
+ * hand back the same function — identity checks like
+ * `eaws.s3.Bucket === eaws.s3.Bucket` hold, and the `get` and
+ * `getOwnPropertyDescriptor` traps agree on a property's value. */
+const wrapperCache = new WeakMap<object, unknown>();
 
 function effectifyValue(value: unknown): unknown {
   if (isResourceConstructor(value)) {
-    return wrapResourceCtor(value);
+    const cached = wrapperCache.get(value);
+    if (cached) return cached;
+    const wrapped = wrapResourceCtor(value);
+    wrapperCache.set(value, wrapped);
+    return wrapped;
   }
 
   if (typeof value === "function") {

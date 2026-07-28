@@ -1,7 +1,7 @@
 import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import * as pulumi from "@pulumi/pulumi";
-import { Effect, Exit } from "effect";
+import { Deferred, Effect, Exit } from "effect";
 import { effectify, fromOutput, fromOutputs, PulumiError } from "../src/index.js";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +47,12 @@ class FakeBucket extends pulumi.CustomResource {
       throw new Error("bad args: explode was set");
     }
     super("test:index:FakeBucket", name, { arn: undefined, ...args }, opts);
+  }
+
+  /** Mirrors the codegen'd static every provider resource ships for adopting
+   * an existing resource into state. */
+  public static get(name: string, id: pulumi.Input<pulumi.ID>): FakeBucket {
+    return new FakeBucket(name, { bucketName: `adopted-${name}` }, { id });
   }
 }
 
@@ -145,6 +151,39 @@ describe("effectify — namespace traversal", () => {
       );
       expect("FakeBucket" in eprovider.storage).toBe(true);
       expect("Nope" in eprovider.storage).toBe(false);
+    })
+  );
+});
+
+describe("effectify — wrapper identity and statics", () => {
+  it.effect("hands back the identical wrapper on every access", () =>
+    Effect.gen(function* () {
+      // Un-memoized wrapping would allocate a fresh closure per property
+      // read, breaking identity comparisons and disagreeing with the
+      // getOwnPropertyDescriptor trap.
+      expect(eprovider.storage.FakeBucket).toBe(eprovider.storage.FakeBucket);
+      expect(
+        Object.getOwnPropertyDescriptor(eprovider.storage, "FakeBucket")?.value
+      ).toBe(eprovider.storage.FakeBucket);
+    })
+  );
+
+  it.effect("forwards codegen-style statics like `get`", () =>
+    Effect.gen(function* () {
+      const adopted = eprovider.storage.FakeBucket.get("adopted", "adopted-id");
+      expect(adopted).toBeInstanceOf(FakeBucket);
+      const { name } = yield* fromOutputs({ name: adopted.bucketName });
+      expect(name).toBe("adopted-adopted");
+    })
+  );
+
+  it.effect("forwards inherited statics, and instanceof still works", () =>
+    Effect.gen(function* () {
+      const bucket = yield* eprovider.storage.FakeBucket("static-check", {
+        bucketName: "static-check-bucket",
+      });
+      expect(eprovider.storage.FakeBucket.isInstance(bucket)).toBe(true);
+      expect(bucket instanceof eprovider.storage.FakeBucket).toBe(true);
     })
   );
 });
@@ -292,6 +331,37 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
     })
   );
 
+  it.live("resolves independent Effect args concurrently", () =>
+    Effect.gen(function* () {
+      // `bucketName` can only complete after `region` has run. One-at-a-time
+      // resolution walks entries in insertion order, so it would park on
+      // `bucketName` forever — the timeout (needs the live clock, hence
+      // it.live) is what turns that regression into a failure, not a hang.
+      const latch = yield* Deferred.make<void>();
+      const bucket = yield* eprovider.storage
+        .FakeBucket("concurrent", {
+          bucketName: Deferred.await(latch).pipe(
+            Effect.as("concurrent-bucket")
+          ),
+          region: Deferred.succeed(latch, void 0).pipe(Effect.as("eu-west-2")),
+        })
+        .pipe(
+          Effect.timeoutFail({
+            duration: "5 seconds",
+            onTimeout: () =>
+              new PulumiError({ cause: "args resolved sequentially" }),
+          })
+        );
+
+      const { name, region } = yield* fromOutputs({
+        name: bucket.bucketName,
+        region: bucket.region,
+      });
+      expect(name).toBe("concurrent-bucket");
+      expect(region).toBe("eu-west-2");
+    })
+  );
+
   it.effect("does not mutate the caller's args object", () =>
     Effect.gen(function* () {
       const args = { bucketName: Effect.succeed("no-mutate-bucket") };
@@ -412,6 +482,12 @@ describe("effectify — type level", () => {
       yield* eprovider.storage.FakeBucket("typed-lifted", {
         bucketName: Effect.succeed("lifted"),
       });
+
+      // Statics survive on the wrapped constructor, typed as on the class.
+      const _adopted: FakeBucket = eprovider.storage.FakeBucket.get(
+        "typed-adopted",
+        "typed-adopted-id"
+      );
     })
   );
 });

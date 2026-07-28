@@ -35,6 +35,12 @@ describe("real @pulumi/aws proxy", () => {
     expect(Object.keys(eaws.s3).length).toBeGreaterThan(10);
     expect("Bucket" in eaws.s3).toBe(true);
 
+    // Wrapper identity is stable across property reads, and the codegen'd
+    // statics are still reachable through the wrapper.
+    expect(eaws.s3.Bucket).toBe(eaws.s3.Bucket);
+    expect(typeof eaws.s3.Bucket.get).toBe("function");
+    expect(typeof eaws.s3.Bucket.isInstance).toBe("function");
+
     const out = await Effect.runPromise(
       Effect.gen(function* () {
         const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
@@ -55,6 +61,11 @@ describe("real @pulumi/aws proxy", () => {
     expect(out.url).toBe("https://assets.s3.amazonaws.com/readme.txt");
     // The Effect-valued `bucket` arg was resolved to the real bucket id.
     expect(out.objBucket).toBe("assets-id");
+
+    // Statics work through the wrapper against real codegen output too.
+    const adopted = eaws.s3.Bucket.get("adopted", "adopted-id");
+    expect(adopted instanceof aws.s3.Bucket).toBe(true);
+    expect(await Effect.runPromise(fromOutput(adopted.id))).toBe("adopted-id");
   });
 
   it("the s3-bucket example returns the stack-output shape the live test asserts", async () => {

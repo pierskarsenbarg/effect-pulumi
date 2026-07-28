@@ -62,6 +62,11 @@ const program = Effect.gen(function* () {
 | Invoke function (`aws.s3.getBucket`) | Passed through untouched |
 | Enums, plain values | Passed through untouched |
 
+Static members survive the wrapping: `eaws.s3.Bucket.get(name, id)` (adopt an
+existing resource), `isInstance`, and any other codegen'd static forward to
+the original class, so the wrapped package can be the only import a program
+needs. When several args fields are Effects, they resolve concurrently.
+
 Two properties worth stating explicitly:
 
 - **Outputs still work exactly as in vanilla Pulumi.** `effectify` only
