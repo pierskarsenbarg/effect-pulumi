@@ -80,6 +80,15 @@ remove a stack whose destroy failed — that orphans live resources.
 
 ## Testing conventions
 
+**The `@effect/vitest` override is load-bearing.** `@effect/vitest@0.30.0`
+still declares `peer vitest@^3.2.0`, so installing vitest 4 fails `npm install`
+with ERESOLVE. The `overrides` entry in `package.json` points that peer at the
+root's own vitest spec (`$vitest`); the whole suite passes on vitest 4, the
+range is just stale upstream. Drop the override once a stable `@effect/vitest`
+accepts vitest 4 on `effect@3` — the `4.0.0-beta` line does, but it requires
+`effect@4.0.0-beta`. `overrides` only applies to the root project, so it never
+reaches consumers of the published package.
+
 **Mutation-test new guards.** A test that can't go red is worth nothing.
 After adding a regression guard, reintroduce the bug, confirm the test fails,
 then revert. Commit first so `git checkout -- <file>` is the restore path — a
