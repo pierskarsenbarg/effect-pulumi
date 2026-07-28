@@ -72,6 +72,16 @@ resolves to the unknown sentinel instead of throwing.
 `Input<T>` and safe to lift; `ComponentResource` args are hand-authored and
 may be bare primitives. This asymmetry is deliberate and tested.
 
+**Invoke wrapping is call-then-inspect, and that's forced.** There is no
+runtime marker for "this function returns a Promise", so the wrapper calls
+the function and wraps the result only if it's thenable. Consequences to
+preserve: the invoke starts at the call site (the Effect awaits an in-flight
+Promise — document, don't "fix", since laziness would require wrapping sync
+functions too); rejections are pre-observed so a discarded Effect can't
+become an unhandled rejection; and `pulumi.Output` must stay non-thenable
+for `*Output` variants to pass through — the type mapping only rewrites
+`Promise`-returning signatures, and runtime and types must agree.
+
 **`automation.ts` has two fixed bugs with guards.** Don't reintroduce them:
 `deploy` must not preview unless asked (a preview is a full engine run — doing
 it before every `up` doubles the work), and no operation may substitute a

@@ -31,7 +31,7 @@ describe("real @pulumi/aws proxy", () => {
   it("traverses lazy namespaces and constructs", async () => {
     expect(typeof eaws.s3).toBe("object");
     expect(typeof eaws.s3.Bucket).toBe("function");
-    expect(typeof eaws.getRegion).toBe("function"); // invoke passthrough
+    expect(typeof eaws.getRegion).toBe("function");
     expect(Object.keys(eaws.s3).length).toBeGreaterThan(10);
     expect("Bucket" in eaws.s3).toBe(true);
 
@@ -66,6 +66,17 @@ describe("real @pulumi/aws proxy", () => {
     const adopted = eaws.s3.Bucket.get("adopted", "adopted-id");
     expect(adopted instanceof aws.s3.Bucket).toBe(true);
     expect(await Effect.runPromise(fromOutput(adopted.id))).toBe("adopted-id");
+
+    // A real Promise-returning invoke comes back as an Effect…
+    const region = await Effect.runPromise(eaws.getRegion({ name: "eu-west-2" }));
+    expect(region.name).toBe("eu-west-2");
+    // …while its Output-returning variant passes through unwrapped, because
+    // Outputs are not thenable.
+    const regionOut = eaws.getRegionOutput({ name: "eu-west-1" });
+    expect(pulumi.Output.isInstance(regionOut)).toBe(true);
+    expect(await Effect.runPromise(fromOutput(regionOut))).toMatchObject({
+      name: "eu-west-1",
+    });
   });
 
   it("the s3-bucket example returns the stack-output shape the live test asserts", async () => {
