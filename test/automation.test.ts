@@ -317,6 +317,8 @@ describe("deploy — failure tagging and short-circuiting", () => {
         expect(error).toBeInstanceOf(AutomationError);
         expect(error.stage).toBe(failAt);
         expect((error.cause as Error).message).toBe(`boom:${failAt}`);
+        // `.message` names the stage and the cause for non-Effect consumers.
+        expect(error.message).toBe(`${failAt} failed: boom:${failAt}`);
 
         for (const before of ranBefore) expect(stages()).toContain(before);
         for (const never of neverRuns) expect(stages()).not.toContain(never);
