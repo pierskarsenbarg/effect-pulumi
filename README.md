@@ -74,7 +74,8 @@ calls.
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Type-check and emit to `dist/` |
+| `npm run build` | Emit the library (src only) to `dist/` |
+| `npm run typecheck` | Type-check everything, including tests and examples |
 | `npm test` | Unit + mocked-provider tests. No credentials needed |
 | `npm run test:live` | Deploys `examples/s3-bucket.ts` for real, then destroys it |
 

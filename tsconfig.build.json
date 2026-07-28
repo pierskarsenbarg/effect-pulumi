@@ -1,0 +1,18 @@
+{
+  // Build config: emits the library only.
+  //
+  // `include` is deliberately just "src" and `rootDir` is explicit. With the
+  // type-check config's wider include, TypeScript infers the common source
+  // root as the repo root, which both nests output under dist/src/ and emits
+  // compiled tests and examples alongside the library.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src"]
+}

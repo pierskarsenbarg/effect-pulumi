@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "EFFECT_PULUMI_RUN_LIVE_TESTS=1 vitest run --config vitest.live.config.ts"
