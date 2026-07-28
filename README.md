@@ -1,14 +1,46 @@
 # effect-pulumi
 
+[![CI](https://github.com/pierskarsenbarg/effect-pulumi/actions/workflows/ci.yml/badge.svg)](https://github.com/pierskarsenbarg/effect-pulumi/actions/workflows/ci.yml)
+
 Gives Pulumi programs Effect's composability — typed errors, sequenced
 dependent resources, and structured result inspection — without hand-wrapping
 every resource constructor.
+
+## Why
+
+Mixing Effect and Pulumi by hand means wrapping every constructor and every
+data-source call yourself:
+
+```ts
+const bucket = yield* Effect.try({
+  try: () => new aws.s3.Bucket("assets", { forceDestroy: true }),
+  catch: (cause) => new InfraError({ cause }),
+});
+const ami = yield* Effect.tryPromise({
+  try: () => aws.ec2.getAmi({ mostRecent: true, owners: ["amazon"] }),
+  catch: (cause) => new InfraError({ cause }),
+});
+```
+
+`effectify` wraps the provider package once, and both collapse to plain calls
+with a shared, typed error channel:
+
+```ts
+const eaws = effectify(aws);
+
+const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
+const ami = yield* eaws.ec2.getAmi({ mostRecent: true, owners: ["amazon"] });
+```
 
 ## Install
 
 ```sh
 npm install effect-pulumi
 ```
+
+Requires Node.js ≥ 22 (the floor `@pulumi/pulumi` itself sets). The peer
+ranges are `@pulumi/pulumi ^3.0.0` and `effect ^3.0.0`, currently verified
+against `@pulumi/pulumi` 3.255 and `effect` 3.22.
 
 `@pulumi/pulumi` and `effect` are peer dependencies — this library extends
 your Pulumi and Effect runtimes, so it must use the same copies you do rather
@@ -48,7 +80,16 @@ const program = Effect.gen(function* () {
 
   return yield* fromOutputs({ id: bucket.id, key: object.key });
 });
+
+// In a classic (ESM) Pulumi project this is the whole entrypoint: run the
+// Effect at module load and export the results as stack outputs.
+export const { id, key } = await Effect.runPromise(program);
 ```
+
+Alternatively, hand `program` to the [Automation API](#automation-api) as an
+inline program and deploy it from the same process. The full version of this
+example — deployed for real by `npm run test:live` — lives in
+[`examples/s3-bucket.ts`](examples/s3-bucket.ts).
 
 ## What `effectify` does
 
@@ -56,23 +97,22 @@ const program = Effect.gen(function* () {
 
 | Export kind | Result |
 | --- | --- |
-| `CustomResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, and any **top-level** args field may additionally be an `Effect` |
+| `CustomResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, and any **top-level** args field may additionally be an `Effect` (several resolve concurrently) |
 | `ComponentResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, args passed through verbatim — never auto-lifted |
 | Namespace object (`aws.s3`) | Recursively proxied, lazily |
 | Invoke function (`aws.s3.getBucket`) | Returns `Effect<R, PulumiError>` instead of `Promise<R>` |
 | `*Output` invoke variant (`getBucketOutput`) | Passed through untouched (returns an `Output`, as upstream) |
 | Enums, plain values, sync functions | Passed through untouched |
 
-Static members survive the wrapping: `eaws.s3.Bucket.get(name, id)` (adopt an
-existing resource), `isInstance`, and any other codegen'd static forward to
-the original class, so the wrapped package can be the only import a program
-needs. When several args fields are Effects, they resolve concurrently.
-
-Two properties worth stating explicitly:
+Semantics worth knowing:
 
 - **Outputs still work exactly as in vanilla Pulumi.** `effectify` only
   *additionally* accepts `Effect`s; passing a bare `Output<T>` or `Input<T>`
   needs no unwrapping or rewrapping.
+- **Statics survive the wrapping.** `eaws.s3.Bucket.get(name, id)` (adopt an
+  existing resource), `isInstance`, and any other codegen'd static forward to
+  the original class — `instanceof` works too — so the wrapped package can be
+  the only import a program needs.
 - **Component args are never lifted.** Component args aren't guaranteed to be
   `Input<T>`-shaped the way codegen'd `CustomResource` args are — a component
   may do synchronous work on a bare primitive in its constructor — so passing
@@ -108,22 +148,14 @@ const exit = await Effect.runPromiseExit(
 
 Every operation forwards the matching Pulumi options type — `UpOptions`,
 `PreviewOptions`, `RefreshOptions`, `DestroyOptions`, `RemoveOptions`. Pass
-`onOutput` to stream
-the CLI's progress; without it a multi-minute deploy prints nothing until it
-finishes. Stacks can be inline programs (`projectName` + `program`) or an
-existing project on disk (`workDir`).
+`onOutput` to stream the CLI's progress; without it a multi-minute deploy
+prints nothing until it finishes. Stacks can be inline programs
+(`projectName` + `program`) or an existing project on disk (`workDir`).
 
 Previewing is opt-in via `preview: true` (or a `PreviewOptions` object), and
 its result comes back on `DeployResult.preview`. It is off by default because
 a preview is a full engine run against the provider, so previewing and then
 immediately upping does the work twice — and `up` surfaces the same failures.
-
-For anything beyond that, compose the exported primitives directly:
-`createOrSelectStack`, `setStackConfig`, `previewStack`, `upStack`,
-`refreshStack`, `stackOutputs`, `destroyStack`, `removeStack`,
-`teardownStack`. `refreshStack` re-syncs state from the actual cloud
-resources; `stackOutputs` reads the current outputs without running an
-update.
 
 Teardown is two steps. `destroyStack` removes the resources but leaves the
 stack registered with the backend; `teardownStack` destroys and then deletes
@@ -131,9 +163,50 @@ it, which is what you want for per-run stacks. `RemoveOptions.force` deletes a
 stack while leaving its resources alive and billing — it is reachable, but it
 orphans them.
 
-Failures are typed: `PulumiError` for resource construction and Output
-resolution, `AutomationError` (tagged with the failing `stage`) for lifecycle
-calls.
+## Handling failures
+
+Failures are values with types, not stringified stack traces. `PulumiError`
+covers resource construction and Output resolution; `AutomationError` adds
+the lifecycle `stage` it came from. Both derive `.message` from the
+underlying cause, so they read well even outside Effect.
+
+```ts
+import { Effect } from "effect";
+import { deploy } from "effect-pulumi";
+
+const guarded = deploy({ stackName, projectName, program }).pipe(
+  // Transient engine failures during `up` are worth another attempt; a
+  // failure creating the stack or setting config is not.
+  Effect.retry({ times: 2, while: (error) => error.stage === "up" }),
+  Effect.catchTag("AutomationError", (error) =>
+    Effect.fail(new Error(`deploy failed at ${error.stage}: ${error.message}`))
+  )
+);
+```
+
+The same works inside a program: `Effect.catchTag("PulumiError", …)` around a
+resource, or `Effect.exit` / `runPromiseExit` at the edge to inspect the full
+`Cause`.
+
+## API
+
+| Export | What it does |
+| --- | --- |
+| `effectify(mod)` | Wrap a provider package (or any namespace) once; see the table above |
+| `fromOutput(output)` | `Output<T>` → `Effect<T, PulumiError>`; resolves to the unknown sentinel during `preview` instead of throwing |
+| `fromOutputs(record)` | Record of Outputs → `Effect` of the resolved record |
+| `deploy(opts)` | Select/create stack → apply config → optional preview → `up`; returns `{ stack, result, preview? }` |
+| `createOrSelectStack(opts)` | Inline (`projectName` + `program`) or local (`workDir`) stack |
+| `setStackConfig(stack, config)` | Apply a whole config map in one `setAllConfig` round-trip |
+| `previewStack(stack, opts?)` | `pulumi preview`, returning the `PreviewResult` |
+| `upStack(stack, opts?)` | `pulumi up`, returning the `UpResult` |
+| `refreshStack(stack, opts?)` | Re-sync state from the actual cloud resources |
+| `stackOutputs(stack)` | Read current outputs without running an update |
+| `destroyStack(stack, opts?)` | Destroy resources; the stack stays registered |
+| `removeStack(stack, opts?)` | Delete the stack from the backend |
+| `teardownStack(stack, opts?)` | Destroy then remove — skips the remove if the destroy failed |
+| `PulumiError` | Construction / Output-resolution failure; carries `cause` |
+| `AutomationError` | Lifecycle failure; carries `stage` and `cause` |
 
 ## Scripts
 
