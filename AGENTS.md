@@ -101,8 +101,9 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
   `test/examples.live.test.ts` does that, and it needs a Pulumi CLI.
 - **Peer ranges (`^3.0.0`) are an untested claim.** Verified against
   `@pulumi/pulumi` 3.254 and `effect` 3.22 only.
-- **No CI.** `test:package` and `test:live` only run when someone runs them;
-  `prepublishOnly` gates the first at publish time.
+- **`test:live` is not in CI.** It needs a Pulumi CLI, cloud credentials and a
+  backend, so it stays a manual run. `.github/workflows/ci.yml` covers
+  typecheck, unit tests, build and packaging on PRs and pushes to `main`.
 
 ## Conventions
 
