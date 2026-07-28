@@ -3,9 +3,12 @@ import type {
   DestroyOptions,
   DestroyResult,
   LocalWorkspaceOptions,
+  OutputMap,
   PreviewOptions,
   PreviewResult,
   PulumiFn,
+  RefreshOptions,
+  RefreshResult,
   RemoveOptions,
   Stack,
   UpOptions,
@@ -72,19 +75,19 @@ export const createOrSelectStack = (
       new AutomationError({ stage: "createOrSelectStack", cause }),
   });
 
+/** Apply the whole config map in one `setAllConfig` call — a single CLI
+ * round-trip, where per-key `setConfig` costs one `pulumi config set`
+ * invocation each. */
 export const setStackConfig = (
   stack: Stack,
   config: Record<string, ConfigValue> | undefined
 ): Effect.Effect<void, AutomationError> =>
-  Effect.gen(function* () {
-    if (!config) return;
-    for (const [key, value] of Object.entries(config)) {
-      yield* Effect.tryPromise({
-        try: () => stack.setConfig(key, value),
+  !config || Object.keys(config).length === 0
+    ? Effect.void
+    : Effect.tryPromise({
+        try: () => stack.setAllConfig(config),
         catch: (cause) => new AutomationError({ stage: "setConfig", cause }),
       });
-    }
-  });
 
 export const previewStack = (
   stack: Stack,
@@ -102,6 +105,27 @@ export const upStack = (
   Effect.tryPromise({
     try: () => stack.up(opts),
     catch: (cause) => new AutomationError({ stage: "up", cause }),
+  });
+
+/** Refresh the stack's state from the actual cloud resources, without
+ * changing them — what to run when state may have drifted (manual console
+ * edits, a crashed update) before deciding what to do about it. */
+export const refreshStack = (
+  stack: Stack,
+  opts?: RefreshOptions
+): Effect.Effect<RefreshResult, AutomationError> =>
+  Effect.tryPromise({
+    try: () => stack.refresh(opts),
+    catch: (cause) => new AutomationError({ stage: "refresh", cause }),
+  });
+
+/** Read the stack's current outputs without running an update. */
+export const stackOutputs = (
+  stack: Stack
+): Effect.Effect<OutputMap, AutomationError> =>
+  Effect.tryPromise({
+    try: () => stack.outputs(),
+    catch: (cause) => new AutomationError({ stage: "outputs", cause }),
   });
 
 /** Destroy the stack's resources. The stack itself remains registered with

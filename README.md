@@ -95,7 +95,8 @@ const exit = await Effect.runPromiseExit(
 ```
 
 Every operation forwards the matching Pulumi options type — `UpOptions`,
-`PreviewOptions`, `DestroyOptions`, `RemoveOptions`. Pass `onOutput` to stream
+`PreviewOptions`, `RefreshOptions`, `DestroyOptions`, `RemoveOptions`. Pass
+`onOutput` to stream
 the CLI's progress; without it a multi-minute deploy prints nothing until it
 finishes. Stacks can be inline programs (`projectName` + `program`) or an
 existing project on disk (`workDir`).
@@ -107,7 +108,10 @@ immediately upping does the work twice — and `up` surfaces the same failures.
 
 For anything beyond that, compose the exported primitives directly:
 `createOrSelectStack`, `setStackConfig`, `previewStack`, `upStack`,
-`destroyStack`, `removeStack`, `teardownStack`.
+`refreshStack`, `stackOutputs`, `destroyStack`, `removeStack`,
+`teardownStack`. `refreshStack` re-syncs state from the actual cloud
+resources; `stackOutputs` reads the current outputs without running an
+update.
 
 Teardown is two steps. `destroyStack` removes the resources but leaves the
 stack registered with the backend; `teardownStack` destroys and then deletes
