@@ -19,8 +19,10 @@ import {
   deploy,
   destroyStack,
   previewStack,
+  refreshStack,
   removeStack,
   setStackConfig,
+  stackOutputs,
   teardownStack,
   upStack,
 } from "../src/index.js";
@@ -29,6 +31,8 @@ type Stage =
   | "createOrSelectStack"
   | "setConfig"
   | "preview"
+  | "refresh"
+  | "outputs"
   | "up"
   | "destroy"
   | "removeStack";
@@ -42,6 +46,8 @@ const h = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   upResult: { summary: { result: "succeeded" }, outputs: { k: { value: "v" } } },
   previewResult: { changeSummary: { create: 1 } },
+  refreshResult: { summary: { result: "succeeded" } },
+  outputsResult: { k: { value: "v", secret: false } },
 }));
 
 vi.mock("@pulumi/pulumi/automation/index.js", () => {
@@ -59,14 +65,21 @@ vi.mock("@pulumi/pulumi/automation/index.js", () => {
         h.calls.push(`removeStack:${stackName}`);
       },
     },
-    setConfig: async (key: string, value: unknown) => {
+    setAllConfig: async (config: Record<string, unknown>) => {
       record("setConfig");
-      h.config[key] = value;
-      h.calls.push(`setConfig:${key}`);
+      Object.assign(h.config, config);
     },
     preview: async (opts?: unknown) => {
       record("preview", opts);
       return h.previewResult;
+    },
+    refresh: async (opts?: unknown) => {
+      record("refresh", opts);
+      return h.refreshResult;
+    },
+    outputs: async () => {
+      record("outputs");
+      return h.outputsResult;
     },
     up: async (opts?: unknown) => {
       record("up", opts);
@@ -96,7 +109,7 @@ const inlineOpts = {
   program: async () => ({ out: 1 }),
 };
 
-/** Stage names only, dropping the `setConfig:<key>` detail entries. */
+/** Stage names only, dropping the `removeStack:<name>` detail entries. */
 const stages = () => h.calls.filter((c) => !c.includes(":"));
 
 const getStack = () => deploy(inlineOpts).pipe(Effect.map((d) => d.stack));
@@ -172,7 +185,7 @@ describe("deploy — lifecycle sequencing", () => {
     })
   );
 
-  it.effect("applies every config entry, before up", () =>
+  it.effect("applies the whole config in one call, before up", () =>
     Effect.gen(function* () {
       yield* deploy({
         ...inlineOpts,
@@ -186,12 +199,8 @@ describe("deploy — lifecycle sequencing", () => {
         region: { value: "eu-west-2" },
         token: { value: "s3cret", secret: true },
       });
-      expect(stages()).toEqual([
-        "createOrSelectStack",
-        "setConfig",
-        "setConfig",
-        "up",
-      ]);
+      // One setAllConfig round-trip, not one CLI invocation per key.
+      expect(stages()).toEqual(["createOrSelectStack", "setConfig", "up"]);
     })
   );
 
@@ -324,6 +333,62 @@ describe("deploy — failure tagging and short-circuiting", () => {
         setStackConfig(stack, { a: { value: "1" } })
       );
       expect(error.stage).toBe("setConfig");
+    })
+  );
+});
+
+describe("refresh and outputs", () => {
+  it.effect("refreshStack forwards options and returns the result", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      const refreshOpts = { onOutput: () => {}, message: "sync state" };
+
+      const result = yield* refreshStack(stack, refreshOpts);
+
+      expect(h.passed.refresh).toBe(refreshOpts);
+      expect(result).toBe(h.refreshResult);
+    })
+  );
+
+  it.effect("refreshStack passes no default options", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      yield* refreshStack(stack);
+      expect(h.passed.refresh).toBeUndefined();
+    })
+  );
+
+  it.effect("stackOutputs reads outputs without running an update", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      h.calls = [];
+
+      const outputs = yield* stackOutputs(stack);
+
+      expect(outputs).toBe(h.outputsResult);
+      expect(stages()).toEqual(["outputs"]);
+    })
+  );
+
+  it.effect("tags a refresh failure", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      h.failAt = "refresh";
+
+      const error = yield* Effect.flip(refreshStack(stack));
+      expect(error).toBeInstanceOf(AutomationError);
+      expect(error.stage).toBe("refresh");
+    })
+  );
+
+  it.effect("tags an outputs failure", () =>
+    Effect.gen(function* () {
+      const stack = yield* getStack();
+      h.failAt = "outputs";
+
+      const error = yield* Effect.flip(stackOutputs(stack));
+      expect(error).toBeInstanceOf(AutomationError);
+      expect(error.stage).toBe("outputs");
     })
   );
 });
