@@ -10,12 +10,12 @@
     "test:live": "EFFECT_PULUMI_RUN_LIVE_TESTS=1 vitest run --config vitest.live.config.ts"
   },
   "dependencies": {
-    "@pulumi/aws": "^7.39.0",
     "@pulumi/pulumi": "^3.254.0",
     "effect": "^3.22.0"
   },
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
+    "@pulumi/aws": "^7.39.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   }
