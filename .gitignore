@@ -2,3 +2,20 @@ node_modules/
 dist/
 *.tsbuildinfo
 Pulumi.*.yaml
+
+# Compiled output belongs in dist/. A tsc invocation that misses an outDir
+# (or hits a rootDir error, which is non-fatal and still emits) drops .js and
+# .d.ts next to the .ts sources — never something to commit. All first-party
+# source in these directories is TypeScript, so nothing legitimate is hidden.
+src/**/*.js
+src/**/*.d.ts
+src/**/*.js.map
+src/**/*.d.ts.map
+test/**/*.js
+test/**/*.d.ts
+test/**/*.js.map
+test/**/*.d.ts.map
+examples/**/*.js
+examples/**/*.d.ts
+examples/**/*.js.map
+examples/**/*.d.ts.map
