@@ -409,7 +409,6 @@ describe("effectify — ComponentResource wrapping", () => {
         Broken: class extends pulumi.ComponentResource {
           constructor(name: string) {
             throw new Error("component blew up");
-            // eslint-disable-next-line no-unreachable
             super("test:index:Broken", name, {});
           }
         },

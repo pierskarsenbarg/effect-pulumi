@@ -135,6 +135,7 @@ calls.
 | `npm run build` | Build dual ESM + CJS (`tsup`) with declarations to `dist/` |
 | `npm run typecheck` | Type-check everything, including tests and examples |
 | `npm test` | Unit + mocked-provider tests. No credentials needed |
+| `npm run test:package` | Builds, packs a tarball and consumes it from ESM and CJS projects |
 | `npm run test:live` | Deploys `examples/s3-bucket.ts` for real, then destroys it |
 
 `npm test` never runs the live harness: it's excluded in `vitest.config.ts`
