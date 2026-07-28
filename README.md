@@ -4,6 +4,29 @@ Gives Pulumi programs Effect's composability — typed errors, sequenced
 dependent resources, and structured result inspection — without hand-wrapping
 every resource constructor.
 
+## Install
+
+```sh
+npm install effect-pulumi
+```
+
+`@pulumi/pulumi` and `effect` are peer dependencies — this library extends
+your Pulumi and Effect runtimes, so it must use the same copies you do rather
+than bundle its own. npm 7+ installs peers automatically; on pnpm or Yarn you
+may need them explicitly:
+
+```sh
+npm install @pulumi/pulumi effect
+```
+
+Ships as dual ESM + CommonJS, so it works from a conventional CJS Pulumi
+program as well as an ESM one:
+
+```ts
+import { effectify } from "effect-pulumi";   // ESM
+const { effectify } = require("effect-pulumi"); // CJS
+```
+
 ## Quick start
 
 ```ts
@@ -74,7 +97,7 @@ calls.
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Emit the library (src only) to `dist/` |
+| `npm run build` | Build dual ESM + CJS (`tsup`) with declarations to `dist/` |
 | `npm run typecheck` | Type-check everything, including tests and examples |
 | `npm test` | Unit + mocked-provider tests. No credentials needed |
 | `npm run test:live` | Deploys `examples/s3-bucket.ts` for real, then destroys it |

@@ -3,6 +3,9 @@ dist/
 *.tsbuildinfo
 Pulumi.*.yaml
 
+# `npm pack` output
+*.tgz
+
 # Compiled output belongs in dist/. A tsc invocation that misses an outDir
 # (or hits a rootDir error, which is non-fatal and still emits) drops .js and
 # .d.ts next to the .ts sources — never something to commit. All first-party
