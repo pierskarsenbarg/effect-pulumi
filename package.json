@@ -50,7 +50,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:live": "EFFECT_PULUMI_RUN_LIVE_TESTS=1 vitest run --config vitest.live.config.ts",
-    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+    "test:package": "vitest run --config vitest.packaging.config.ts",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run test:package"
   },
   "peerDependencies": {
     "@pulumi/pulumi": "^3.0.0",
