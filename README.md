@@ -116,7 +116,8 @@ Semantics worth knowing:
 - **Component args are never lifted.** Component args aren't guaranteed to be
   `Input<T>`-shaped the way codegen'd `CustomResource` args are — a component
   may do synchronous work on a bare primitive in its constructor — so passing
-  an `Effect` where a component expects a primitive is a type error.
+  an `Effect` where a component expects a primitive is a type error. See
+  [Component resources](#component-resources) for the patterns this implies.
 - **Invokes start when you call them.** Whether a function is async is only
   knowable by calling it, so `eaws.getAmi(args)` fires the invoke immediately
   and hands back an Effect that resolves the already-in-flight call — the
@@ -127,6 +128,47 @@ Semantics worth knowing:
 Resource registration stays synchronous under the hood; `Effect.try` runs its
 thunk immediately. This removes wrapper boilerplate, not Pulumi's execution
 model.
+
+## Component resources
+
+Component resources are fully supported as *consumers*: `effectify` detects
+any class extending `pulumi.ComponentResource` — your own, or those in a
+component-based package like `@pulumi/awsx` — and wraps its constructor into
+an Effect factory, exactly like a custom resource. Construction errors land
+in the typed error channel, and the component sequences with `yield*` like
+everything else.
+
+What differs is the args object. Custom resource args can carry `Effect`
+fields because codegen guarantees they are all `Input<T>`-shaped, so
+substituting a resolved value is always legal. Component args are
+hand-authored: a component may take a bare `replicas: number` and do
+synchronous arithmetic on it inside its constructor, and an `Effect` silently
+swapped in there would break it. So for components, `effectify` refuses at
+the type level instead of guessing — resolve your Effects first, then
+construct with plain values:
+
+```ts
+const eawsx = effectify(awsx);
+
+const program = Effect.gen(function* () {
+  // ✗ type error — component args are never auto-lifted:
+  //   eawsx.ecs.Cluster("app", { vpcId: fromOutput(vpc.id) })
+
+  // ✓ resolve first, then pass a plain value (or just pass the Output —
+  //   Input<T>-typed component args accept those as in vanilla Pulumi):
+  const vpcId = yield* fromOutput(vpc.id);
+  const cluster = yield* eawsx.ecs.Cluster("app", { vpcId });
+});
+```
+
+*Authoring* a component is different: a `ComponentResource` constructor is
+synchronous, so you cannot `yield*` inside it. Write a component's internals
+in plain Pulumi — its children are ordinary constructor calls — and use
+`effectify` at the program level, where composition actually happens. The
+wrapped and unwrapped worlds interoperate freely: a component built from raw
+Pulumi children can itself be constructed through an effectified package,
+and its `Output` properties flow into `fromOutput`/`fromOutputs` like any
+other resource's.
 
 ## Automation API
 
