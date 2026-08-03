@@ -61,7 +61,7 @@
     "@effect/vitest": "^0.30.0",
     "@pulumi/aws": "^7.39.0",
     "@pulumi/pulumi": "^3.255.0",
-    "effect": "^3.22.0",
+    "effect": "^3.22.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.0",
     "vitest": "^4.1.10"
