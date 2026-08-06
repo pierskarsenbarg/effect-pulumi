@@ -25,6 +25,10 @@
   "engines": {
     "node": ">=22"
   },
+  "workspaces": [
+    ".",
+    "examples/s3-bucket"
+  ],
   "files": [
     "dist"
   ],
