@@ -64,8 +64,8 @@
   },
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
-    "@pulumi/aws": "^7.39.0",
-    "@pulumi/pulumi": "^3.255.0",
+    "@pulumi/aws": "^7.40.0",
+    "@pulumi/pulumi": "^3.256.0",
     "effect": "^3.22.1",
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
