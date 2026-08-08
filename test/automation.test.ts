@@ -13,6 +13,7 @@
 import { beforeEach, describe, expect, vi } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
+import type { ConfigMap } from "@pulumi/pulumi/automation/index.js";
 import {
   AutomationError,
   createOrSelectStack,
@@ -42,8 +43,8 @@ const h = vi.hoisted(() => ({
   failAt: null as string | null,
   createArgs: undefined as any,
   createWorkspaceOpts: undefined as any,
-  passed: {} as Record<string, unknown>,
-  config: {} as Record<string, unknown>,
+  passed: {} as Partial<Record<Stage, unknown>>,
+  config: {} as ConfigMap,
   upResult: { summary: { result: "succeeded" }, outputs: { k: { value: "v" } } },
   previewResult: { changeSummary: { create: 1 } },
   refreshResult: { summary: { result: "succeeded" } },
@@ -51,7 +52,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@pulumi/pulumi/automation/index.js", () => {
-  const record = (name: string, opts?: unknown) => {
+  const record = (name: Stage, opts?: unknown) => {
     h.calls.push(name);
     h.passed[name] = opts;
     if (h.failAt === name) throw new Error(`boom:${name}`);
@@ -65,7 +66,7 @@ vi.mock("@pulumi/pulumi/automation/index.js", () => {
         h.calls.push(`removeStack:${stackName}`);
       },
     },
-    setAllConfig: async (config: Record<string, unknown>) => {
+    setAllConfig: async (config: ConfigMap) => {
       record("setConfig");
       Object.assign(h.config, config);
     },
