@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  // `import` earns its place for one rule in particular — see
+  // `import/extensions` below.
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest"],
+
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+
+  "env": {
+    "builtin": true,
+    "node": true,
+    "es2022": true
+  },
+
+  "rules": {
+    // Not on in any category, and the one lint this repo most needs. `module:
+    // NodeNext` plus `"type": "module"` means every relative specifier has to
+    // name the *emitted* `.js` file — `./errors.js`, never `./errors`. tsc
+    // resolves the extensionless form happily and Node then fails at runtime,
+    // so nothing else in the toolchain catches it. `ignorePackages` keeps the
+    // rule off bare specifiers like `@pulumi/pulumi`.
+    "import/extensions": ["error", "ignorePackages"],
+
+    // `Effect.gen(function* () { ... })` is the standard way to write an
+    // Effect, and a body that only calls `expect` legitimately never yields.
+    "require-yield": "off",
+
+    // `_tag` is Effect's own discriminant (`Data.TaggedError` writes it), and
+    // `_name` / `_plain` are the conventional prefix for a binding that exists
+    // only to be type-checked or discarded.
+    "no-underscore-dangle": "off",
+
+    // Wants `Array#toSorted()`, which is ES2023. `tsconfig.json` targets
+    // ES2022 and takes its `lib` from that, so the replacement does not
+    // type-check. Revisit alongside the target.
+    "unicorn/no-array-sort": "off",
+
+    // Does not recognise `@effect/vitest`'s `it.effect(...)` as a test block,
+    // so every assertion in the suite reads as standalone.
+    "vitest/no-standalone-expect": "off"
+  }
+}

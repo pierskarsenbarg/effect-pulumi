@@ -20,7 +20,9 @@ describeLive("examples (live, real Automation API deploy)", () => {
 
       // Stream the CLI's output. A live deploy runs for minutes, and when it
       // fails this is the only thing that explains why — the thrown error
-      // alone rarely does.
+      // alone rarely does. Kept inline next to the `deploy` call it belongs
+      // to; this doubles as the example of how to wire progress output.
+      // oxlint-disable-next-line unicorn/consistent-function-scoping
       const onOutput = (out: string) => process.stdout.write(out);
 
       const managedDeploy = Effect.acquireRelease(

@@ -2,7 +2,12 @@ import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import * as pulumi from "@pulumi/pulumi";
 import { Deferred, Effect, Exit } from "effect";
-import { effectify, fromOutput, fromOutputs, PulumiError } from "../src/index.js";
+import {
+  effectify,
+  fromOutput,
+  fromOutputs,
+  PulumiError,
+} from "../src/index.js";
 
 // ---------------------------------------------------------------------------
 // Mock resource monitor — present purely so the fake resource subclasses below
@@ -470,21 +475,28 @@ describe("effectify — ComponentResource wrapping", () => {
     })
   );
 
-  it.effect("converts a thrown component constructor error to PulumiError", () =>
-    Effect.gen(function* () {
-      const spied = {
-        Broken: class extends pulumi.ComponentResource {
-          constructor(name: string) {
-            throw new Error("component blew up");
-            super("test:index:Broken", name, {});
-          }
-        },
-      };
+  it.effect(
+    "converts a thrown component constructor error to PulumiError",
+    () =>
+      Effect.gen(function* () {
+        const spied = {
+          Broken: class extends pulumi.ComponentResource {
+            // The throw is the point of the fixture; the unreachable `super()`
+            // below it is only there because TypeScript requires a derived
+            // constructor to contain one.
+            // oxlint-disable-next-line constructor-super
+            constructor(name: string) {
+              throw new Error("component blew up");
+              // oxlint-disable-next-line no-unreachable
+              super("test:index:Broken", name, {});
+            }
+          },
+        };
 
-      const error = yield* Effect.flip(effectify(spied).Broken("broken"));
-      expect(error).toBeInstanceOf(PulumiError);
-      expect((error.cause as Error).message).toContain("component blew up");
-    })
+        const error = yield* Effect.flip(effectify(spied).Broken("broken"));
+        expect(error).toBeInstanceOf(PulumiError);
+        expect((error.cause as Error).message).toContain("component blew up");
+      })
   );
 });
 

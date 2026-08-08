@@ -131,9 +131,7 @@ const proxyCache = new WeakMap<object, unknown>();
 const isEffect = (value: unknown): value is Effect.Effect<unknown, unknown> =>
   Effect.isEffect(value);
 
-function resolveLiftedArgs(
-  args: unknown
-): Effect.Effect<unknown, PulumiError> {
+function resolveLiftedArgs(args: unknown): Effect.Effect<unknown, PulumiError> {
   if (!isPlainNamespace(args)) {
     return Effect.succeed(args);
   }
@@ -194,8 +192,7 @@ const withStatics = <F extends object>(factory: F, Ctor: Function): F =>
       Reflect.has(target, prop)
         ? Reflect.get(target, prop, receiver)
         : Reflect.get(Ctor, prop),
-    has: (target, prop) =>
-      Reflect.has(target, prop) || Reflect.has(Ctor, prop),
+    has: (target, prop) => Reflect.has(target, prop) || Reflect.has(Ctor, prop),
   });
 
 function wrapResourceCtor(Ctor: new (...args: any[]) => pulumi.Resource) {
