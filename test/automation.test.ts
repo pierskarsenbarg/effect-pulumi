@@ -45,7 +45,10 @@ const h = vi.hoisted(() => ({
   createWorkspaceOpts: undefined as any,
   passed: {} as Partial<Record<Stage, unknown>>,
   config: {} as ConfigMap,
-  upResult: { summary: { result: "succeeded" }, outputs: { k: { value: "v" } } },
+  upResult: {
+    summary: { result: "succeeded" },
+    outputs: { k: { value: "v" } },
+  },
   previewResult: { changeSummary: { create: 1 } },
   refreshResult: { summary: { result: "succeeded" } },
   outputsResult: { k: { value: "v", secret: false } },
@@ -160,13 +163,15 @@ describe("createOrSelectStack", () => {
 });
 
 describe("deploy — lifecycle sequencing", () => {
-  it.effect("runs createOrSelectStack then up, with no preview by default", () =>
-    Effect.gen(function* () {
-      const { preview } = yield* deploy(inlineOpts);
-      // Regression guard: previewing before every up does the work twice.
-      expect(stages()).toEqual(["createOrSelectStack", "up"]);
-      expect(preview).toBeUndefined();
-    })
+  it.effect(
+    "runs createOrSelectStack then up, with no preview by default",
+    () =>
+      Effect.gen(function* () {
+        const { preview } = yield* deploy(inlineOpts);
+        // Regression guard: previewing before every up does the work twice.
+        expect(stages()).toEqual(["createOrSelectStack", "up"]);
+        expect(preview).toBeUndefined();
+      })
   );
 
   it.effect("previews before up when asked, and returns the result", () =>
@@ -312,7 +317,11 @@ describe("deploy — failure tagging and short-circuiting", () => {
         h.failAt = failAt;
 
         const error = yield* Effect.flip(
-          deploy({ ...inlineOpts, preview: true, config: { k: { value: "v" } } })
+          deploy({
+            ...inlineOpts,
+            preview: true,
+            config: { k: { value: "v" } },
+          })
         );
 
         expect(error).toBeInstanceOf(AutomationError);

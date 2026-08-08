@@ -48,6 +48,15 @@ jobs:
       - name: Type-check (src, examples and tests)
         run: npm run typecheck
 
+      # oxlint and oxfmt are native binaries whose behaviour does not vary with
+      # the Node version, so this is redundant across the matrix — it stays in
+      # the same job anyway rather than costing a second checkout and install.
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
       - name: Unit, mocked-provider and automation tests
         run: npm test
 

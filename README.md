@@ -256,6 +256,9 @@ resource, or `Effect.exit` / `runPromiseExit` at the edge to inspect the full
 | --- | --- |
 | `npm run build` | Build dual ESM + CJS (`tsup`) with declarations to `dist/` |
 | `npm run typecheck` | Type-check everything, including tests and examples |
+| `npm run lint` | Lint with `oxlint` (`npm run lint:fix` applies safe fixes) |
+| `npm run format` | Format with `oxfmt` (`npm run format:check` asserts instead) |
+| `npm run check` | `typecheck` + `lint` + `format:check`, the pre-commit sweep |
 | `npm test` | Unit + mocked-provider tests. No credentials needed |
 | `npm run test:package` | Builds, packs a tarball and consumes it from ESM and CJS projects |
 | `npm run test:live` | Deploys `examples/s3-bucket.ts` for real, then destroys it |

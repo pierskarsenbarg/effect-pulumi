@@ -24,7 +24,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 const localRequire = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  ".."
+);
 const tscBin = localRequire.resolve("typescript/bin/tsc");
 
 /** Peers are not installed into the consumer project — they are symlinked
@@ -145,9 +148,7 @@ beforeAll(() => {
   stage = fs.mkdtempSync(path.join(os.tmpdir(), "effect-pulumi-pkg-"));
 
   sh(`npm pack --pack-destination "${stage}"`);
-  const tarball = fs
-    .readdirSync(stage)
-    .find((f) => f.endsWith(".tgz"))!;
+  const tarball = fs.readdirSync(stage).find((f) => f.endsWith(".tgz"))!;
   const tarballPath = path.join(stage, tarball);
 
   tarballEntries = sh(`tar -tzf "${tarballPath}"`)
@@ -317,7 +318,9 @@ describe("consumer type resolution", () => {
       const trace = runTsc(path.join(stage, dir, "tsconfig.json"), [
         "--traceResolution",
       ]);
-      const hit = [...trace.matchAll(/effect-pulumi[/\\]dist[/\\](index\.d\.[cm]?ts)/g)];
+      const hit = [
+        ...trace.matchAll(/effect-pulumi[/\\]dist[/\\](index\.d\.[cm]?ts)/g),
+      ];
       return new Set(hit.map((m) => m[1]));
     };
     expect(resolved("ts-esm")).toEqual(new Set(["index.d.ts"]));

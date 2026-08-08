@@ -18,11 +18,17 @@ pulumi.runtime.setMocks(
   {
     newResource: (a: pulumi.runtime.MockResourceArgs) => ({
       id: `${a.name}-id`,
-      state: { ...a.inputs, arn: `arn:aws:s3:::${a.name}`, bucketDomainName: `${a.name}.s3.amazonaws.com` },
+      state: {
+        ...a.inputs,
+        arn: `arn:aws:s3:::${a.name}`,
+        bucketDomainName: `${a.name}.s3.amazonaws.com`,
+      },
     }),
     call: (a: pulumi.runtime.MockCallArgs) => a.inputs,
   },
-  "proj", "stack", false
+  "proj",
+  "stack",
+  false
 );
 
 const eaws = effectify(aws);
@@ -53,7 +59,11 @@ describe("real @pulumi/aws proxy", () => {
         const url = yield* fromOutput(
           pulumi.interpolate`https://${bucket.bucketDomainName}/${object.key}`
         );
-        return { id, url, objBucket: yield* fromOutput(object.bucket as pulumi.Output<string>) };
+        return {
+          id,
+          url,
+          objBucket: yield* fromOutput(object.bucket as pulumi.Output<string>),
+        };
       })
     );
 
@@ -68,7 +78,9 @@ describe("real @pulumi/aws proxy", () => {
     expect(await Effect.runPromise(fromOutput(adopted.id))).toBe("adopted-id");
 
     // A real Promise-returning invoke comes back as an Effect…
-    const region = await Effect.runPromise(eaws.getRegion({ name: "eu-west-2" }));
+    const region = await Effect.runPromise(
+      eaws.getRegion({ name: "eu-west-2" })
+    );
     expect(region.name).toBe("eu-west-2");
     // …while its Output-returning variant passes through unwrapped, because
     // Outputs are not thenable.

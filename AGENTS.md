@@ -26,6 +26,9 @@ dependencies.
 | --- | --- |
 | `npm test` | Unit + mocked-provider + automation. Fast, no credentials |
 | `npm run typecheck` | Type-checks **everything**, including tests and examples |
+| `npm run lint` | oxlint. `lint:fix` applies the safe fixes |
+| `npm run format` | oxfmt, in place. `format:check` asserts instead |
+| `npm run check` | typecheck + lint + format:check in one go |
 | `npm run build` | tsup → dual ESM/CJS + declarations in `dist/` |
 | `npm run test:package` | Builds, packs, consumes the tarball. ~16s |
 | `npm run test:live` | Real cloud deploy. Needs the Pulumi CLI and credentials |
@@ -39,7 +42,9 @@ config. Don't collapse them.
 **Relative imports need `.js`, even in `.ts` files.** `module: NodeNext` plus
 `"type": "module"`. TypeScript never rewrites specifiers, and Node's ESM
 resolver has no extension guessing, so the source must name the *emitted*
-file. `import { PulumiError } from "./errors.js"` is correct.
+file. `import { PulumiError } from "./errors.js"` is correct. `npm run lint`
+now guards this — `import/extensions` is switched on in `.oxlintrc.json`
+precisely because nothing else in the toolchain catches it.
 
 **Two tsconfigs, different jobs.** `tsconfig.json` type-checks `src` +
 `examples` + `test` and emits nothing. `tsconfig.build.json` is scoped to
@@ -96,6 +101,37 @@ it before every `up` doubles the work), and no operation may substitute a
 default `onOutput` (it silences all progress). Also, `teardownStack` must not
 remove a stack whose destroy failed — that orphans live resources.
 
+## Lint and format
+
+oxlint and oxfmt, both native, both configured at the repo root. Every `"off"`
+in `.oxlintrc.json` and every entry in `.oxfmtrc.json` carries a comment saying
+why; read it before flipping one back on.
+
+**oxfmt is pinned to the style already in the tree** — `printWidth: 80`,
+`trailingComma: "es5"` — not to its own defaults of 100 and `"all"`. Changing
+either rewrites every file, which buries the next real diff. `sortPackageJson`
+is off for the same reason.
+
+**Markdown is deliberately unformatted.** `*.md` is in `ignorePatterns`. The
+docs are full of `—` and `→`, which oxfmt's table alignment measures as one
+column each, and — worse — the README's ```` ```ts ```` fences are snippets
+lifted out of generator bodies, so formatting them as standalone programs
+reparses `yield* eaws.s3.Bucket(...)` into the binary expression
+`yield * eaws...` and silently corrupts the docs.
+
+**Four rules are off because they misread Effect or `@effect/vitest`,** not
+because the code is sloppy: `require-yield` (an `Effect.gen` body that only
+asserts never yields), `vitest/no-standalone-expect` (`it.effect` isn't
+recognised as a test block, so all 108 assertions look standalone),
+`no-underscore-dangle` (`_tag` is Effect's discriminant), and
+`unicorn/no-array-sort` (wants `toSorted()`, which is ES2023 — the `lib`
+follows `target: ES2022`, so it wouldn't type-check).
+
+**Prefer an inline `oxlint-disable-next-line` with a reason** over a new
+`"off"` entry when a single site is the exception. Two exist today, both in
+`test/`: the component-constructor fixture that throws before its required
+`super()`, and the live test's inline `onOutput`.
+
 ## Testing conventions
 
 **The `@effect/vitest` override is load-bearing.** `@effect/vitest@0.30.0`
@@ -130,7 +166,8 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
   `@pulumi/pulumi` 3.254 and `effect` 3.22 only.
 - **`test:live` is not in CI.** It needs a Pulumi CLI, cloud credentials and a
   backend, so it stays a manual run. `.github/workflows/ci.yml` covers
-  typecheck, unit tests, build and packaging on PRs and pushes to `main`.
+  typecheck, lint, format, unit tests, build and packaging on PRs and pushes
+  to `main`.
 
 ## Conventions
 
