@@ -64,6 +64,14 @@ index signatures — the stricter constraint silently disables Effect-lifting
 for every real provider. Similarly, the constructor parameter tuple is mapped
 homomorphically so optional args stay optional.
 
+The rule generalises: **never constrain a generic with `Record<string, …>`.**
+`fromOutputs` did, and it rejected every interface-typed bag of Outputs until
+it moved to the self-referential `T extends { [K in keyof T]: Output<any> }`.
+Object literals satisfy both forms, so runtime tests can't see the difference
+— the guard is in `typecheck`, not `test`. Keep `Output<any>` rather than
+`Output<unknown>`: `apply` puts `T` in contravariant position, so
+`Output<string>` is not assignable to `Output<unknown>`.
+
 **`Output.promise()` is not public API** but is what the runtime uses.
 `fromOutput` passes `withUnknowns: true` so reading outputs during `preview`
 resolves to the unknown sentinel instead of throwing.

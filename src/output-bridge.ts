@@ -25,7 +25,7 @@ export const fromOutput = <T>(
 /** Lift a record of Outputs into a single Effect of the resolved record —
  * use this right after constructing a resource to grab several fields at
  * once (e.g. `{ id: bucket.id, arn: bucket.arn }`). */
-export const fromOutputs = <T extends Record<string, pulumi.Output<any>>>(
+export const fromOutputs = <T extends { [K in keyof T]: pulumi.Output<any> }>(
   outputs: T
 ): Effect.Effect<{ [K in keyof T]: pulumi.Unwrap<T[K]> }, PulumiError> =>
   fromOutput(pulumi.all(outputs) as pulumi.Output<any>);
