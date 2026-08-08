@@ -1,5 +1,5 @@
 import type {
-  ConfigValue,
+  ConfigMap,
   DestroyOptions,
   DestroyResult,
   LocalWorkspaceOptions,
@@ -80,7 +80,7 @@ export const createOrSelectStack = (
  * invocation each. */
 export const setStackConfig = (
   stack: Stack,
-  config: Record<string, ConfigValue> | undefined
+  config: ConfigMap | undefined
 ): Effect.Effect<void, AutomationError> =>
   !config || Object.keys(config).length === 0
     ? Effect.void
@@ -174,7 +174,7 @@ export const teardownStack = (
 // ---------------------------------------------------------------------------
 
 export type DeployOptions = StackOptions & {
-  readonly config?: Record<string, ConfigValue>;
+  readonly config?: ConfigMap;
   readonly up?: UpOptions;
   /** Run `preview` before `up`, returning its result.
    *

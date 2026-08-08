@@ -283,7 +283,7 @@ describe("effectify — CustomResource wrapping", () => {
       let constructed = false;
       const spied = {
         Tracked: class extends pulumi.CustomResource {
-          constructor(name: string, args: Record<string, unknown>) {
+          constructor(name: string, args: pulumi.Inputs) {
             constructed = true;
             super("test:index:Tracked", name, args);
           }
@@ -367,7 +367,7 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
       let constructed = false;
       const spied = {
         Tracked: class extends pulumi.CustomResource {
-          constructor(name: string, args: Record<string, unknown>) {
+          constructor(name: string, args: pulumi.Inputs) {
             constructed = true;
             super("test:index:Tracked2", name, args);
           }
@@ -515,6 +515,27 @@ describe("output bridge", () => {
         b: pulumi.output("two"),
       });
       expect(resolved).toEqual({ a: 1, b: "two" });
+    })
+  );
+
+  it.effect("fromOutputs accepts an interface-typed record of Outputs", () =>
+    Effect.gen(function* () {
+      // The guard here is the *type*, not the assertion: interfaces get no
+      // implicit index signature, so constraining the parameter with
+      // `Record<string, Output<any>>` rejects `Endpoints` outright. Only
+      // `npm run typecheck` can go red on that — vitest transpiles without
+      // checking — so this must stay covered by the typecheck script.
+      interface Endpoints {
+        url: pulumi.Output<string>;
+        port: pulumi.Output<number>;
+      }
+      const endpoints: Endpoints = {
+        url: pulumi.output("https://example.test"),
+        port: pulumi.output(443),
+      };
+
+      const resolved = yield* fromOutputs(endpoints);
+      expect(resolved).toEqual({ url: "https://example.test", port: 443 });
     })
   );
 

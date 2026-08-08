@@ -69,8 +69,24 @@ const isComponentResourceConstructor = (
   Ctor === (pulumi.ComponentResource as unknown) ||
   Ctor.prototype instanceof pulumi.ComponentResource;
 
-const isPlainNamespace = (value: unknown): value is Record<string, unknown> =>
+/** An object whose string-keyed properties we only ever *read*. Distinct from
+ * `Record<string, unknown>`, which additionally claims the properties are
+ * writable and that the object declares an index signature — neither is true
+ * of a codegen'd `BucketArgs`, and neither is something this module relies on. */
+type UnknownProps = { readonly [key: string]: unknown };
+
+/** Is this a namespace to recurse into? The narrowed type is only ever handed
+ * to `effectifyInner`, which takes `object` — so claim exactly that and no
+ * more. */
+const isNamespace = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Is this an args object whose entries we can scan for Effects? Same runtime
+ * check as `isNamespace`, but a different question, so it gets the narrowing
+ * that question needs: `object` would make `Object.entries` infer `any` values
+ * and silently drop the `isEffect` filter's type safety. */
+const isArgsObject = (value: unknown): value is UnknownProps =>
+  isNamespace(value);
 
 /** Note: `pulumi.Output` is deliberately not thenable, so `*Output` invoke
  * variants fail this check and pass through unwrapped — keeping the runtime
@@ -132,7 +148,7 @@ const isEffect = (value: unknown): value is Effect.Effect<unknown, unknown> =>
   Effect.isEffect(value);
 
 function resolveLiftedArgs(args: unknown): Effect.Effect<unknown, PulumiError> {
-  if (!isPlainNamespace(args)) {
+  if (!isArgsObject(args)) {
     return Effect.succeed(args);
   }
 
@@ -260,7 +276,7 @@ function effectifyValue(value: unknown): unknown {
     return wrapped;
   }
 
-  if (isPlainNamespace(value)) {
+  if (isNamespace(value)) {
     return effectifyInner(value);
   }
 
