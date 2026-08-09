@@ -158,16 +158,20 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
 
 ## Known gaps
 
-- **`automation.ts` has no integration coverage.** Its tests mock
-  `LocalWorkspace`, so they prove sequencing, option forwarding and error
-  tagging — not that the real Automation API accepts these arguments. Only
-  `test/examples.live.test.ts` does that, and it needs a Pulumi CLI.
+- **`automation.ts`'s unit tests mock `LocalWorkspace`,** so they prove
+  sequencing, option forwarding and error tagging — not that the real
+  Automation API accepts these arguments. The `examples` CI job now covers
+  that part by deploying `examples/automation-api-random-pet` for real; what
+  remains uncovered there is any behaviour specific to a cloud provider or the
+  Pulumi Cloud backend.
 - **Peer ranges (`^3.0.0`) are an untested claim.** Verified against
   `@pulumi/pulumi` 3.254 and `effect` 3.22 only.
-- **`test:live` is not in CI.** It needs a Pulumi CLI, cloud credentials and a
-  backend, so it stays a manual run. `.github/workflows/ci.yml` covers
-  typecheck, lint, format, unit tests, build and packaging on PRs and pushes
-  to `main`.
+- **`test:live` is not in CI.** It needs cloud credentials, so it stays a
+  manual run — it is the only thing that exercises a real provider (AWS).
+  `.github/workflows/ci.yml` covers typecheck, lint, format, unit tests, build
+  and packaging on PRs and pushes to `main`, plus an `examples` job that
+  deploys and destroys both examples against a local file backend
+  (`PULUMI_BACKEND_URL=file://…`) — no credentials, so it works on forks too.
 
 ## Conventions
 

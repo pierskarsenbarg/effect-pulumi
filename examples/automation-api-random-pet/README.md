@@ -29,19 +29,24 @@ Requirements: the Pulumi CLI on `PATH`, and credentials for a backend
 
 ## In GitHub Actions
 
+This repo's own `.github/workflows/ci.yml` runs the example on every PR, in the
+`Examples (local state)` job — read that for the working version. It uses a
+local file backend rather than Pulumi Cloud, so it needs no secrets and works
+on forked PRs:
+
 ```yaml
-- uses: pulumi/actions@v6            # puts the Pulumi CLI on PATH
-- run: npm ci
-- run: npm run start -w effect-pulumi-automation-random-pet
-  env:
-    PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-    PULUMI_STACK_NAME: ci-${{ github.run_id }}
-- run: npm run destroy -w effect-pulumi-automation-random-pet
-  if: always()
-  env:
-    PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-    PULUMI_STACK_NAME: ci-${{ github.run_id }}
+env:
+  PULUMI_BACKEND_URL: file://${{ runner.temp }}/pulumi-state
+  PULUMI_CONFIG_PASSPHRASE: ci   # throwaway: the state dies with the runner
+  PULUMI_STACK_NAME: ci-${{ github.run_id }}
+steps:
+  - uses: pulumi/actions@v7      # no `command`: install-only
+  - run: mkdir -p "${{ runner.temp }}/pulumi-state"
+  - run: npm ci
+  - run: npm run start -w effect-pulumi-automation-random-pet
+  - run: npm run destroy -w effect-pulumi-automation-random-pet
+    if: always()
 ```
 
-A per-run stack name leaves an empty stack behind each time; switch
-`destroy.ts` to `teardownStack` to delete the stack too.
+For Pulumi Cloud instead, drop the two backend variables and pass
+`PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}`.

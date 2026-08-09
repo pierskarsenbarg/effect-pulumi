@@ -59,3 +59,76 @@ jobs:
       # project, so it is worth running on every Node version rather than once.
       - name: Packaging suite
         run: npm run test:package
+
+  examples:
+    name: Examples (local state)
+    runs-on: ubuntu-latest
+
+    env:
+      # This job deploys for real, but needs no credentials: state goes to a
+      # self-managed file backend on the runner (PULUMI_BACKEND_URL, set from
+      # $RUNNER_TEMP below — the `runner` context is not available in job-level
+      # env), and both examples use @pulumi/random, whose provider needs no
+      # cloud account. That is what lets it run on forked PRs, where secrets
+      # are absent.
+      #
+      # The file backend encrypts secrets with a passphrase and both examples
+      # emit a RandomPassword. The value is throwaway — the state is discarded
+      # with the runner.
+      PULUMI_CONFIG_PASSPHRASE: ci
+      # Per-run name; the two examples are separate projects, so they don't
+      # collide on it.
+      PULUMI_STACK_NAME: ci-${{ github.run_id }}
+
+    # Not part of the `test` matrix: these exercise Pulumi rather than Node
+    # version differences, and one runner keeps the CLI install and the
+    # provider plugin download to a single copy.
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # No `command` input — that is the action's documented install-only
+      # mode, which is all this job wants from it.
+      - uses: pulumi/actions@v7
+
+      # Pulumi does not create the backend directory itself. Kept out of the
+      # checkout so no state can leak into the working tree.
+      - name: Point Pulumi at a local state directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/pulumi-state"
+          echo "PULUMI_BACKEND_URL=file://$RUNNER_TEMP/pulumi-state" >> "$GITHUB_ENV"
+
+      # Also builds dist/ via the root `prepare`, which is what both examples
+      # resolve `effect-pulumi` to through their workspace symlink.
+      - name: Install
+        run: npm ci
+
+      - name: Automation API example — deploy
+        run: npm run start -w effect-pulumi-automation-random-pet
+
+      # `if: always()` so a failed deploy still tears down, and best-effort so
+      # teardown cannot bury the real error with a second, derivative failure.
+      # The trade-off is that a genuine regression in destroy shows up only in
+      # this step's log, not in the job's status.
+      - name: Automation API example — destroy
+        if: always()
+        continue-on-error: true
+        run: npm run destroy -w effect-pulumi-automation-random-pet
+
+      - name: random-pet example — deploy
+        working-directory: examples/random-pet
+        run: |
+          pulumi stack init "$PULUMI_STACK_NAME"
+          pulumi up --yes
+
+      - name: random-pet example — destroy
+        if: always()
+        continue-on-error: true
+        working-directory: examples/random-pet
+        run: |
+          pulumi destroy --yes --stack "$PULUMI_STACK_NAME"
+          pulumi stack rm --yes --stack "$PULUMI_STACK_NAME"
