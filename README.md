@@ -105,7 +105,43 @@ module.exports = Effect.runPromise(program);
 `Output`s from resource properties directly rather than reading through them
 with `fromOutput`.
 
-Alternatively, hand `program` to the Automation API as an inline program and
-deploy it from the same process.
+Alternatively, hand `program` to the [Automation API](#automation-api) as an
+inline program and deploy it from the same process.
 
 For projects you can deploy as-is, see [`examples/`](examples/).
+
+## Automation API
+
+`deploy` runs `createOrSelectStack` → config → `up` as one pipeline, returning
+the stack handle alongside the result so callers can tear down without
+re-selecting.
+
+```ts
+const exit = await Effect.runPromiseExit(
+  deploy({
+    stackName: "dev",
+    projectName: "my-infra",
+    // a PulumiFn - run the Effect, return its result as the stack outputs
+    program: async () => Effect.runPromise(program),
+    up: { onOutput: (out) => process.stdout.write(out) },
+  })
+);
+// Exit/Cause instead of a thrown, stringified error
+```
+
+Stacks are either inline programs (`projectName` + `program`, above) or an
+existing project on disk (`workDir`), and every operation forwards the
+matching Pulumi options type - `UpOptions`, `DestroyOptions`, and so on. Pass
+`onOutput` to stream the CLI's progress; without it a multi-minute deploy
+prints nothing until it finishes.
+
+Preview is opt-in via `preview: true` and comes back on
+`DeployResult.preview`. It is off by default because a preview is a full
+engine run, so previewing and then immediately upping does the work twice -
+and `up` surfaces the same failures anyway.
+
+Teardown is two steps: `destroyStack` removes the resources but leaves the
+stack registered, while `teardownStack` destroys and then deletes it - the
+latter is what per-run stacks want. Avoid `RemoveOptions.force`, which drops
+a stack while leaving its resources alive and billing with nothing tracking
+them.
