@@ -1,7 +1,4 @@
 {
-  // Type-checking config: covers everything (src, examples, tests) so editors
-  // and `npm run typecheck` see the whole project. Emits nothing — the
-  // shippable build is tsconfig.build.json, which is scoped to src only.
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
@@ -11,14 +8,6 @@
     "skipLibCheck": true,
     "useDefineForClassFields": false,
     "noEmit": true,
-
-    // examples/s3-bucket imports "effect-pulumi" by name, the way a consumer
-    // would. Without this, the workspace symlink resolves it through the
-    // package's export map to dist/, which does not exist until `npm run
-    // build` — and typecheck runs first, both in CI and on a clean checkout.
-    // Pointing at the source also means the example can never typecheck
-    // against a stale build. Type-check only; tsconfig.build.json is
-    // unaffected.
     "paths": {
       "effect-pulumi": ["./src/index.ts"]
     }
