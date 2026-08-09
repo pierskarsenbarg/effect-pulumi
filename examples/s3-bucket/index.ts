@@ -6,9 +6,10 @@ const eaws = effectify(aws);
 
 const program = Effect.gen(function* () {
   const bucket = yield* eaws.s3.Bucket("my-bucket");
-  return { bucketName: bucket.id };
+  return {
+    bucketName: bucket.id,
+    bucketArn: bucket.arn,
+  };
 });
 
-export const bucketName = Effect.runSync(
-  Effect.map(program, (outputs) => outputs.bucketName)
-);
+export const { bucketName, bucketArn } = Effect.runSync(program);
