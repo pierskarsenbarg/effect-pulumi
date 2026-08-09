@@ -64,6 +64,13 @@ jobs:
     name: Examples (local state)
     runs-on: ubuntu-latest
 
+    # Gated on the whole `test` matrix passing. A real deploy is the slowest
+    # thing in CI and the least useful signal on a build that is already
+    # broken: every failure `test` catches — a type error, a bad export, an
+    # unformatted file — would surface here as a confusing runtime error
+    # instead. Skipping keeps the first red mark on the job that explains it.
+    needs: test
+
     env:
       # This job deploys for real, but needs no credentials: state goes to a
       # self-managed file backend on the runner (PULUMI_BACKEND_URL, set from

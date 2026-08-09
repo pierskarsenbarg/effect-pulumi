@@ -172,6 +172,8 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
   and packaging on PRs and pushes to `main`, plus an `examples` job that
   deploys and destroys both examples against a local file backend
   (`PULUMI_BACKEND_URL=file://…`) — no credentials, so it works on forks too.
+  That job is gated on the `test` matrix passing, so a red build skips it
+  rather than reporting a second, derivative failure.
 
 ## Conventions
 
