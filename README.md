@@ -92,11 +92,16 @@ inline program and deploy it from the same process.
 The full version of the program above lives in
 [`test/s3-bucket-program.ts`](test/s3-bucket-program.ts). It sits in `test/`
 rather than `examples/` because it is a fixture rather than a project you can
-run: two suites share it, the mocked one in `npm test` and the live one in
-`npm run test:live`. For examples you can actually deploy, see
-[`examples/`](examples/) — though those use `@pulumi/random`, whose resources
-take no inputs from one another, so they do not show `fromOutput` or an Effect
-in an args slot.
+run — its only consumer today is the mocked suite in `npm test`, exercising a
+real `@pulumi/aws` package under Pulumi's mocks, no cloud account involved.
+
+For examples you can actually deploy, see [`examples/`](examples/) — those use
+`@pulumi/random`, whose resources take no inputs from one another, so they
+don't show `fromOutput` or an Effect in an args slot. For that, see
+[`test/random-password-file-program.ts`](test/random-password-file-program.ts):
+a `RandomPassword`'s Output flows into a `local.File`'s args, and it's
+deployed for real by `npm run test:live` — no cloud credentials needed, since
+`@pulumi/local` only touches the local filesystem.
 
 ## What `effectify` does
 

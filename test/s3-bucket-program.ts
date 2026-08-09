@@ -5,12 +5,12 @@
  * another's Output.
  *
  * Deliberately not named `*.test.ts`: vitest's `include` globs would try to
- * collect it as a suite and fail on finding no tests. Its two consumers are
+ * collect it as a suite and fail on finding no tests. Its only consumer is
  * `aws-provider.mocked.test.ts`, which runs it under Pulumi's mocks in the
- * default suite, and `s3-bucket.live.test.ts`, which deploys it for real.
- * Keeping one program behind both means a break in the example's contract
- * fails `npm test` without credentials, and only the genuinely
- * cloud-dependent behaviour needs `npm run test:live`.
+ * default suite — real `@pulumi/aws` classes and lazy namespace getters, but
+ * no cloud calls. Nothing here is deployed for real: the live suite
+ * (`npm run test:live`) exercises `random-password-file-program.ts` instead,
+ * which needs no cloud credentials at all.
  */
 
 import * as aws from "@pulumi/aws";

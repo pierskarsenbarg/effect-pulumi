@@ -91,7 +91,7 @@ describe("real @pulumi/aws proxy", () => {
     });
   });
 
-  it("the s3-bucket program returns the stack-output shape the live test asserts", async () => {
+  it("the s3-bucket program builds and returns the expected stack-output shape", async () => {
     // `UpResult.outputs` is an OutputMap — `{ [key]: { value, secret } }` —
     // built by the CLI from whatever the inline program *returns*. So the
     // program must return raw values; wrapping them itself would nest them as

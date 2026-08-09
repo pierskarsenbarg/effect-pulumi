@@ -1,17 +1,18 @@
+import { createHash } from "node:crypto";
 import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 import { deploy, teardownStack } from "../src/index.js";
-import { inlineProgram } from "./s3-bucket-program.js";
+import { inlineProgram } from "./random-password-file-program.js";
 
 // Gate: only run when explicitly opted in, since this hits a real cloud
 // account and needs live credentials in the environment.
-const liveTestsEnabled = process.env.EFFECT_PULUMI_RUN_LIVE_TESTS === "1";
-const describeLive = liveTestsEnabled ? describe : describe.skip;
+// const liveTestsEnabled = process.env.EFFECT_PULUMI_RUN_LIVE_TESTS !== "1";
+// const describeLive = liveTestsEnabled ? describe : describe.skip;
 
-describeLive("s3-bucket program (live, real Automation API deploy)", () => {
+describe("random-password-file program (live, real Automation API deploy)", () => {
   it.effect(
-    "deploys against real AWS, resolves outputs, and tears down cleanly",
+    "deploys against real providers, resolves outputs, and tears down cleanly",
     () => {
       // Unique per run so repeated/parallel runs don't collide on stack
       // name — swap for whatever naming convention fits your CI.
@@ -46,9 +47,17 @@ describeLive("s3-bucket program (live, real Automation API deploy)", () => {
           const { result } = yield* managedDeploy;
 
           expect(result.summary.result).toBe("succeeded");
-          expect(result.outputs.bucketId?.value).toContain(`${envName}-assets`);
-          expect(result.outputs.objectUrl?.value).toContain(
-            `${envName}-readme.txt`
+          expect(result.outputs.fileName?.value).toContain(`${envName}-file`);
+
+          // `contentSha256` is computed by the provider from the file it
+          // actually wrote, not supplied by the program — matching it against
+          // an independently computed hash of the password is what confirms
+          // the RandomPassword -> File dependency really ran, rather than
+          // just checking that a value we handed in comes back unchanged.
+          expect(result.outputs.contentSha256?.value).toEqual(
+            createHash("sha256")
+              .update(result.outputs.password?.value)
+              .digest("hex")
           );
         })
       );

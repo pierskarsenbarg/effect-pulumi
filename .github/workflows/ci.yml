@@ -139,3 +139,12 @@ jobs:
         run: |
           pulumi destroy --yes --stack "$PULUMI_STACK_NAME"
           pulumi stack rm --yes --stack "$PULUMI_STACK_NAME"
+
+      # Unlike the two examples above, this deploys and destroys inside a
+      # single vitest test (Effect.acquireRelease + Effect.scoped, so teardown
+      # runs even if the deploy or an assertion fails) — one step is enough,
+      # no paired destroy step or continue-on-error needed. It picks its own
+      # stack name at runtime, so it doesn't collide with $PULUMI_STACK_NAME
+      # above, and needs only the backend env already set for this job.
+      - name: Live Automation API test (local state)
+        run: npm run test:live

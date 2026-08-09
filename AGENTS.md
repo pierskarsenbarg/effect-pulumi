@@ -31,11 +31,11 @@ dependencies.
 | `npm run check` | typecheck + lint + format:check in one go |
 | `npm run build` | tsup → dual ESM/CJS + declarations in `dist/` |
 | `npm run test:package` | Builds, packs, consumes the tarball. ~16s |
-| `npm run test:live` | Real cloud deploy. Needs the Pulumi CLI and credentials |
+| `npm run test:live` | Real Automation API deploy via `@pulumi/random` + `@pulumi/local`. Needs the Pulumi CLI, no cloud credentials |
 
 There are three vitest configs on purpose. The default excludes both the live
-harness (needs credentials) and the packaging suite (slow); each has its own
-config. Don't collapse them.
+harness and the packaging suite (slow); each has its own config. Don't
+collapse them.
 
 ## Things that are easy to get wrong
 
@@ -166,14 +166,22 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
   Pulumi Cloud backend.
 - **Peer ranges (`^3.0.0`) are an untested claim.** Verified against
   `@pulumi/pulumi` 3.254 and `effect` 3.22 only.
-- **`test:live` is not in CI.** It needs cloud credentials, so it stays a
-  manual run — it is the only thing that exercises a real provider (AWS).
+- **Nothing in CI, or in `npm run test:live`, exercises a real cloud
+  provider.** `test/random-password-file-program.ts` — the live fixture —
+  moved from `@pulumi/aws` to `@pulumi/random` + `@pulumi/local` so it needs
+  no credentials, which is what let `test:live` join the `examples` CI job.
+  The AWS-shaped fixture (`test/s3-bucket-program.ts`) still exists but now
+  runs only under Pulumi's mocks (`aws-provider.mocked.test.ts`), never for
+  real. Real-cloud-provider coverage is a gap until something is deployed
+  against an actual cloud account again — manually, or behind a credentialed
+  CI job explicitly scoped for it.
   `.github/workflows/ci.yml` covers typecheck, lint, format, unit tests, build
   and packaging on PRs and pushes to `main`, plus an `examples` job that
-  deploys and destroys both examples against a local file backend
-  (`PULUMI_BACKEND_URL=file://…`) — no credentials, so it works on forks too.
-  That job is gated on the `test` matrix passing, so a red build skips it
-  rather than reporting a second, derivative failure.
+  deploys and destroys both `@pulumi/random` examples and runs `test:live`,
+  all against a local file backend (`PULUMI_BACKEND_URL=file://…`) — no
+  credentials, so it works on forks too. That job is gated on the `test`
+  matrix passing, so a red build skips it rather than reporting a second,
+  derivative failure.
 
 ## Conventions
 
