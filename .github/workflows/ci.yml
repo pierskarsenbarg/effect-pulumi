@@ -34,16 +34,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      # `npm ci` on every event, so a PR is built from the exact locked tree
-      # that will land. PRs previously used `npm install`, which repairs a
-      # desynced lockfile in the runner instead of failing: the PR then went
-      # green against a tree that existed nowhere, and the desync surfaced
-      # only when the merge commit ran `npm ci`. That is how #19 left main red.
-      # The npm doing the resolving comes from setup-node, so it is not pinned
-      # here — which is also why a lockfile written by a different npm must
-      # fail on the PR rather than after merge. A Dependabot lockfile that
-      # needs reconciling now goes red here; recreate it with an
-      # `@dependabot recreate` comment rather than relaxing this step.
       - name: Install
         run: npm ci
 
