@@ -4,8 +4,11 @@
  * `fromOutputs`, an Effect passed into a resource's args, and one resource
  * depending on another's Output — without needing cloud credentials.
  * `RandomPassword`'s output flows into a `local.File`'s content, and
- * `fromOutputs` pulls the file's base64 content, filename and the password
- * back out in one call.
+ * `fromOutputs` pulls back `contentSha256`: not an input we supplied, but a
+ * checksum the provider computes from whatever it actually wrote to disk.
+ * Asserting that against an independently computed hash of the password is
+ * what makes this a real test of the dependency, rather than a check that
+ * Pulumi's state faithfully echoes back a value we handed it ourselves.
  *
  * Deliberately not named `*.test.ts`: vitest's `include` globs would try to
  * collect it as a suite and fail on finding no tests. Its only consumer is
@@ -28,31 +31,31 @@ const localFileProgram = (envName: string) =>
       length: 20,
     });
 
+    // The password Output flows straight into another resource's args —
+    // arg-lifting resolves it before `File` is constructed.
     const file = yield* elocal.File(`${envName}-file`, {
       filename: `${envName}-file`,
       content: fromOutput(pw.result),
     });
 
-    const {
-      content: contentb64,
-      fileName,
-      password,
-    } = yield* fromOutputs({
-      content: file.contentBase64,
+    // `contentSha256` isn't in `FileArgs` — it can't be supplied, only read
+    // back once the provider has computed it from the file it wrote.
+    const { contentSha256, fileName, password } = yield* fromOutputs({
+      contentSha256: file.contentSha256,
       fileName: file.filename,
       password: pw.result,
     });
 
-    return { contentb64, fileName, password };
+    return { contentSha256, fileName, password };
   });
 
 /** The program as a `PulumiFn`, which is the shape the Automation API takes.
  * Returns raw values, not Outputs: the CLI builds `UpResult.outputs` from
  * whatever the inline program returns, so wrapping them here would nest them
- * as `outputs.contentb64.value.value`. */
+ * as `outputs.contentSha256.value.value`. */
 export const inlineProgram = (envName: string) => async () => {
-  const { contentb64, fileName, password } = await Effect.runPromise(
+  const { contentSha256, fileName, password } = await Effect.runPromise(
     localFileProgram(envName)
   );
-  return { contentb64, fileName, password };
+  return { contentSha256, fileName, password };
 };

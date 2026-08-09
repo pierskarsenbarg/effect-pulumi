@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
@@ -48,8 +49,15 @@ describe("random-password-file program (live, real Automation API deploy)", () =
           expect(result.summary.result).toBe("succeeded");
           expect(result.outputs.fileName?.value).toContain(`${envName}-file`);
 
-          expect(result.outputs.contentb64?.value).toEqual(
-            Buffer.from(result.outputs.password?.value).toString("base64")
+          // `contentSha256` is computed by the provider from the file it
+          // actually wrote, not supplied by the program — matching it against
+          // an independently computed hash of the password is what confirms
+          // the RandomPassword -> File dependency really ran, rather than
+          // just checking that a value we handed in comes back unchanged.
+          expect(result.outputs.contentSha256?.value).toEqual(
+            createHash("sha256")
+              .update(result.outputs.password?.value)
+              .digest("hex")
           );
         })
       );
