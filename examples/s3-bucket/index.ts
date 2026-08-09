@@ -10,5 +10,5 @@ const program = Effect.gen(function* () {
 });
 
 export const bucketName = Effect.runSync(
-  Effect.map(program, ({ bucketName }) => bucketName)
+  Effect.map(program, (outputs) => outputs.bucketName)
 );
