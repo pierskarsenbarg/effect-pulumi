@@ -12,7 +12,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { Effect } from "effect";
 import { effectify, fromOutput, fromOutputs } from "../src/index.js";
-import { inlineProgram } from "../examples/s3-bucket.js";
+import { inlineProgram } from "./s3-bucket-program.js";
 
 pulumi.runtime.setMocks(
   {
@@ -91,7 +91,7 @@ describe("real @pulumi/aws proxy", () => {
     });
   });
 
-  it("the s3-bucket example returns the stack-output shape the live test asserts", async () => {
+  it("the s3-bucket program returns the stack-output shape the live test asserts", async () => {
     // `UpResult.outputs` is an OutputMap — `{ [key]: { value, secret } }` —
     // built by the CLI from whatever the inline program *returns*. So the
     // program must return raw values; wrapping them itself would nest them as
