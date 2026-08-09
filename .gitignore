@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 Pulumi.*.yaml
+/live-test-*-file
 
 # `npm pack` output
 *.tgz
