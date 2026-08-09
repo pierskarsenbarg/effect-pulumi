@@ -121,6 +121,26 @@ type LiftArgsParam<P extends readonly unknown[]> = {
  * `isInstance`), which the runtime wrapper forwards to the original class. */
 type StaticMembers<T> = Omit<T, "prototype">;
 
+/**
+ * The type of {@link effectify}'s result: `T` with every resource constructor
+ * and every `Promise`-returning invoke rewritten, and everything else left
+ * alone.
+ *
+ * The cases, in the order they are tried:
+ *
+ * | Input                       | Becomes                                        |
+ * | --------------------------- | ---------------------------------------------- |
+ * | `ComponentResource` class   | factory returning `Effect`, args **not** lifted |
+ * | `CustomResource` class      | factory returning `Effect`, args lifted         |
+ * | other class                 | unchanged                                       |
+ * | `(...) => Promise<R>`       | `(...) => Effect<R, PulumiError>`               |
+ * | other function              | unchanged (includes `*Output` invokes)          |
+ * | object                      | mapped recursively                              |
+ * | anything else               | unchanged                                       |
+ *
+ * Statics survive on the wrapped constructors, so `Bucket.get` and
+ * `Bucket.isInstance` remain callable.
+ */
 export type Effectify<T> = T extends abstract new (
   ...params: infer P
 ) => infer R
@@ -324,7 +344,45 @@ function effectifyInner<T extends object>(mod: T): Effectify<T> {
   return proxy;
 }
 
-/** Wrap a provider package (or any namespace) once. */
+/**
+ * Wrap a provider package (or any namespace) once, turning every resource
+ * constructor into an `Effect`-returning factory and every `Promise`-returning
+ * invoke into an `Effect`-returning function.
+ *
+ * Call this once per package at module scope and export the result — the
+ * wrapper is cached, so repeated calls and repeated property reads hand back
+ * the same objects, but there is no reason to re-wrap.
+ *
+ * @param mod - The provider package, or any namespace within one. Not mutated;
+ * the result is a read-only proxy that forwards to it.
+ * @returns A same-shaped view of `mod`, typed by {@link Effectify}.
+ *
+ * @example Constructing a resource
+ * ```ts
+ * import * as aws from "@pulumi/aws";
+ * const eaws = effectify(aws);
+ *
+ * const program = Effect.gen(function* () {
+ *   const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
+ *   return bucket.id;
+ * });
+ * ```
+ *
+ * @example Passing an Effect as an argument
+ * A `CustomResource`'s args may hold Effects, which are resolved concurrently
+ * before the resource is constructed:
+ * ```ts
+ * yield* eaws.s3.BucketObject("readme", {
+ *   bucket: bucketIdEffect,
+ *   content: "hello",
+ * });
+ * ```
+ *
+ * @throws Nothing. Failures surface in the returned Effect's error channel as
+ * {@link PulumiError} — including synchronous throws from the constructor.
+ *
+ * @see {@link Effectify} for the type-level mapping.
+ */
 export function effectify<T extends object>(mod: T): Effectify<T> {
   return effectifyInner(mod);
 }
