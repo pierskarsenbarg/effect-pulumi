@@ -62,6 +62,10 @@
     "@pulumi/pulumi": "^3.0.0",
     "effect": "^3.0.0"
   },
+  "workspaces": [
+    ".",
+    "examples/s3-bucket"
+  ],
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
     "@pulumi/aws": "^7.40.0",
