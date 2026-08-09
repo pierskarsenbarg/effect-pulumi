@@ -86,6 +86,39 @@ const program = Effect.gen(function* () {
 export const { id, key } = await Effect.runPromise(program);
 ```
 
+Pulumi's TypeScript programs default to CommonJS (no `"type": "module"` in
+`package.json`), where top-level `await` isn't available - use
+`Effect.runSync` instead, which needs none:
+
+```ts
+const aws = require("@pulumi/aws");
+const { Effect } = require("effect");
+const { effectify, fromOutput, fromOutputs } = require("effect-pulumi");
+
+const eaws = effectify(aws);
+
+const program = Effect.gen(function* () {
+  const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
+
+  const object = yield* eaws.s3.BucketObject("readme", {
+    bucket: fromOutput(bucket.id),
+    key: "readme.txt",
+    content: "hello",
+  });
+
+  return yield* fromOutputs({ id: bucket.id, key: object.key });
+});
+
+module.exports = Effect.runSync(program);
+```
+
+`Effect.runSync` throws if `program` suspends on anything genuinely
+asynchronous - safe here because every yielded step is a Pulumi resource
+registration or an Output resolution, both of which `effectify` and
+`fromOutput`/`fromOutputs` resolve without blocking the CLI's engine
+round-trip. See [`examples/random-pet`](examples/random-pet) for a deployable
+CJS project built the same way.
+
 Alternatively, hand `program` to the [Automation API](#automation-api) as an
 inline program and deploy it from the same process.
 
