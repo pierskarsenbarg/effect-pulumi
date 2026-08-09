@@ -55,7 +55,7 @@
     "check": "npm run typecheck && npm run lint && npm run format:check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:live": "EFFECT_PULUMI_RUN_LIVE_TESTS=1 vitest run --config vitest.live.config.ts",
+    "test:live": "vitest run --config vitest.live.config.ts",
     "test:package": "vitest run --config vitest.packaging.config.ts",
     "prepublishOnly": "npm run check && npm run test && npm run test:package"
   },
