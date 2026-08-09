@@ -34,15 +34,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      # PRs install rather than `npm ci` so Dependabot's PRs run cleanly even
-      # when the lockfile it produces needs reconciling. Pushes to main keep
-      # `npm ci` so what lands is built from the exact locked tree.
-      - name: Install (PR)
-        if: github.event_name == 'pull_request'
-        run: npm install
-
-      - name: Install (main)
-        if: github.event_name != 'pull_request'
+      - name: Install
         run: npm ci
 
       - name: Type-check (src, examples and tests)
