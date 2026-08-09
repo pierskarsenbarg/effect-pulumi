@@ -8,9 +8,13 @@ const program = Effect.gen(function* () {
   const pet = yield* erandom.RandomPet("pet", {
     length: 2,
   });
+  const pw = yield* erandom.RandomPassword("pw", {
+    length: 20,
+  });
   return {
     petName: pet.id,
+    password: pw.result,
   };
 });
 
-export const { petName } = Effect.runSync(program);
+export const { petName, password } = Effect.runSync(program);
