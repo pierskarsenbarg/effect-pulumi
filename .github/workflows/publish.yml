@@ -1,0 +1,73 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      # Strict vMAJOR.MINOR.PATCH only — not the looser `v*`, which would
+      # also match stray/non-release tags and hand them straight to a
+      # publish gate. This is what `npm version <bump>` produces by default.
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write # to create the GitHub Release
+  id-token: write # for npm provenance
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22" # engines floor
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install
+        run: npm ci
+
+      # The tag is authoritative for the version — package.json's committed
+      # version is not bumped as part of a release. `--no-git-tag-version`
+      # means this only rewrites the working tree's package.json (and
+      # package-lock.json's top-level version field): no commit, no push,
+      # nothing leaves this checkout. Runs before the quality gate so
+      # everything after this, including what the packaging suite packs and
+      # consumes, sees the real version.
+      - name: Set package.json version from the tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit, mocked-provider and automation tests
+        run: npm test
+
+      - name: Build (dual ESM/CJS)
+        run: npm run build
+
+      - name: Packaging suite
+        run: npm run test:package
+
+      # `npm publish` re-runs `prepublishOnly` (check+test+test:package)
+      # itself — redundant with the explicit steps above, but that's the
+      # point: the explicit steps give a precise pass/fail per stage in the
+      # Actions UI, `prepublishOnly` is the safety net if this workflow is
+      # ever bypassed (e.g. someone publishes by hand).
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
