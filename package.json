@@ -65,7 +65,8 @@
   },
   "workspaces": [
     ".",
-    "examples/random-pet"
+    "examples/random-pet",
+    "examples/automation-api-random-pet"
   ],
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
