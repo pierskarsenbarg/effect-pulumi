@@ -9,12 +9,11 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
-  contents: write # to create the GitHub Release
-  id-token: write # for npm provenance
+  contents: read
 
 jobs:
-  publish:
-    name: Publish to npm
+  test:
+    name: Test
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +23,6 @@ jobs:
         with:
           node-version: "22" # engines floor
           cache: npm
-          registry-url: "https://registry.npmjs.org"
 
       - name: Install
         run: npm ci
@@ -33,9 +31,10 @@ jobs:
       # version is not bumped as part of a release. `--no-git-tag-version`
       # means this only rewrites the working tree's package.json (and
       # package-lock.json's top-level version field): no commit, no push,
-      # nothing leaves this checkout. Runs before the quality gate so
-      # everything after this, including what the packaging suite packs and
-      # consumes, sees the real version.
+      # nothing leaves this checkout. Runs before the gate so everything
+      # after this, including what the packaging suite packs and consumes,
+      # sees the real version — the same version `publish` will derive
+      # independently from the same tag.
       - name: Set package.json version from the tag
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
@@ -57,11 +56,35 @@ jobs:
       - name: Packaging suite
         run: npm run test:package
 
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: write # to create the GitHub Release
+      id-token: write # for npm provenance
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install
+        run: npm ci
+
+      # Fresh checkout, fresh working tree — this job re-derives the version
+      # from the tag itself rather than inheriting anything from `test`.
+      - name: Set package.json version from the tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
       # `npm publish` re-runs `prepublishOnly` (check+test+test:package)
-      # itself — redundant with the explicit steps above, but that's the
-      # point: the explicit steps give a precise pass/fail per stage in the
-      # Actions UI, `prepublishOnly` is the safety net if this workflow is
-      # ever bypassed (e.g. someone publishes by hand).
+      # itself as a redundant safety net — `needs: test` above is what
+      # actually gates whether this job runs at all.
       - name: Publish to npm
         run: npm publish --access public --provenance
         env:
