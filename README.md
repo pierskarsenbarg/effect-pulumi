@@ -121,8 +121,8 @@ module.exports = Effect.runPromise(program);
 `Output`s from resource properties directly rather than reading through them
 with `fromOutput`.
 
-Alternatively, hand `program` to the [Automation API](#automation-api) as an
-inline program and deploy it from the same process.
+Alternatively, hand `program` to the Automation API as an inline program and
+deploy it from the same process.
 
 The full version of the program above lives in
 [`test/s3-bucket-program.ts`](test/s3-bucket-program.ts). It sits in `test/`
