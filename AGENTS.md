@@ -173,10 +173,28 @@ step; the repo's committed version can lag behind the last published release.
 
 Publishing needs an `NPM_TOKEN` repo secret - an npm **Automation** token
 (not "Publish", which still prompts for a 2FA OTP that nothing in CI can
-answer). npm's tokenless "Trusted Publishing" (OIDC) isn't used here: it's
-configured on a package's npmjs.com Settings page, which can't exist before a
-first publish, and npm's docs don't confirm it works for one. Worth adopting
-later, once the package exists on the registry.
+answer). npm's tokenless "Trusted Publishing" (OIDC) isn't used yet - it's
+configured on a package's npmjs.com Settings page, which couldn't exist
+before a first publish. `effect-pulumi@0.1.0` is live on npm now, so that's
+unblocked; migrating is a two-part, deliberately ordered change:
+
+1. **Manual, on npmjs.com** (not automatable - no API access to the account):
+   package page -> Settings -> Trusted publishing -> add a publisher with
+   organization/user `pierskarsenbarg`, repository `effect-pulumi`, workflow
+   filename `publish.yml` (filename only), allowed actions `npm publish`.
+2. **Workflow, only after step 1 is done**: drop `NODE_AUTH_TOKEN` from the
+   "Publish to npm" step (`id-token: write` is already there, added for
+   provenance - same permission OIDC needs); add `npm install -g npm@latest`
+   before publishing, since trusted publishing needs npm CLI >=11.5.1 and
+   nothing currently pins that explicitly; `--provenance` becomes automatic
+   and can be dropped.
+
+Doing step 2 before step 1 breaks the next release - there would be nowhere
+for the OIDC token to authenticate against. Verify by watching the *next* tag
+push after merging step 2, not the workflow syntax alone; if it fails,
+`NPM_TOKEN` still works until it's deleted, so the rollback is a one-line
+revert. Don't delete the secret until one OIDC-authenticated publish has
+actually succeeded.
 
 ## Known gaps
 
