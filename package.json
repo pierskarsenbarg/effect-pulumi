@@ -65,7 +65,7 @@
   },
   "workspaces": [
     ".",
-    "examples/s3-bucket"
+    "examples/random-pet"
   ],
   "devDependencies": {
     "@effect/vitest": "^0.30.0",

@@ -1,0 +1,14 @@
+{
+  "name": "effect-random-pet",
+  "main": "index.ts",
+  "devDependencies": {
+    "@types/node": "^18",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.113.0",
+    "@pulumi/random": "^4.21.1",
+    "effect": "^3.22.0",
+    "effect-pulumi": "^0.1.0"
+  }
+}
