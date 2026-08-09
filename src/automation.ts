@@ -23,7 +23,7 @@ import { AutomationError } from "./errors.js";
 //
 // Each wraps one Automation API call, tagging failures with the stage they
 // came from. They are exported individually so callers can assemble their own
-// lifecycle — `deploy` below is only the common path.
+// lifecycle - `deploy` below is only the common path.
 //
 // Every operation takes the matching Pulumi options type. That includes
 // `onOutput`: pass it to stream the CLI's progress as it happens. Without it
@@ -32,13 +32,13 @@ import { AutomationError } from "./errors.js";
 // thrown, but only once the operation has finished).
 // ---------------------------------------------------------------------------
 
-/** Arguments for an inline program — the Pulumi program is a function in this
+/** Arguments for an inline program - the Pulumi program is a function in this
  * process, with no `Pulumi.yaml` on disk. */
 export interface InlineStackOptions {
   /** Stack to select, created if absent. */
   readonly stackName: string;
   /** Project name to register the stack under. Chosen freely here, since
-   * there is no `Pulumi.yaml` to take it from — but it is part of the stack's
+   * there is no `Pulumi.yaml` to take it from - but it is part of the stack's
    * identity in the backend, so changing it later points at a different
    * stack. */
   readonly projectName: string;
@@ -48,7 +48,7 @@ export interface InlineStackOptions {
   readonly workspaceOptions?: LocalWorkspaceOptions;
 }
 
-/** Arguments for a local program — an existing Pulumi project on disk. */
+/** Arguments for a local program - an existing Pulumi project on disk. */
 export interface LocalStackOptions {
   /** Stack to select, created if absent. */
   readonly stackName: string;
@@ -69,8 +69,8 @@ const isLocal = (opts: StackOptions): opts is LocalStackOptions =>
 /** Select the stack, creating it if it does not exist, and return the handle
  * every other operation here takes.
  *
- * Creating the workspace is itself work — it may write files and shell out to
- * the CLI — so hold on to the returned `Stack` rather than re-selecting before
+ * Creating the workspace is itself work - it may write files and shell out to
+ * the CLI - so hold on to the returned `Stack` rather than re-selecting before
  * each operation. */
 export const createOrSelectStack = (
   opts: StackOptions
@@ -94,7 +94,7 @@ export const createOrSelectStack = (
       new AutomationError({ stage: "createOrSelectStack", cause }),
   });
 
-/** Apply the whole config map in one `setAllConfig` call — a single CLI
+/** Apply the whole config map in one `setAllConfig` call - a single CLI
  * round-trip, where per-key `setConfig` costs one `pulumi config set`
  * invocation each. */
 export const setStackConfig = (
@@ -110,7 +110,7 @@ export const setStackConfig = (
 
 /** Compute the plan without applying it.
  *
- * A preview is a full engine run against the provider, not a cheap check — see
+ * A preview is a full engine run against the provider, not a cheap check - see
  * {@link DeployOptions.preview} before pairing one with an `up`. */
 export const previewStack = (
   stack: Stack,
@@ -135,7 +135,7 @@ export const upStack = (
   });
 
 /** Refresh the stack's state from the actual cloud resources, without
- * changing them — what to run when state may have drifted (manual console
+ * changing them - what to run when state may have drifted (manual console
  * edits, a crashed update) before deciding what to do about it. */
 export const refreshStack = (
   stack: Stack,
@@ -156,7 +156,7 @@ export const stackOutputs = (
   });
 
 /** Destroy the stack's resources. The stack itself remains registered with
- * the backend — see `removeStack` / `teardownStack` to delete it too. */
+ * the backend - see `removeStack` / `teardownStack` to delete it too. */
 export const destroyStack = (
   stack: Stack,
   opts?: DestroyOptions
@@ -168,7 +168,7 @@ export const destroyStack = (
 
 /** Delete the stack and its configuration and history from the backend.
  *
- * This does not destroy resources — run `destroyStack` first, or use
+ * This does not destroy resources - run `destroyStack` first, or use
  * `teardownStack`. Pulumi refuses to remove a stack that still has resources
  * unless `RemoveOptions.force` is set, and forcing it orphans them: they keep
  * existing and billing with nothing tracking them. */
@@ -205,7 +205,7 @@ export type DeployOptions = StackOptions & {
   /** Config to apply before the update, in one `setAllConfig` call. Keys are
    * fully qualified (`"my-project:myKey"`). */
   readonly config?: ConfigMap;
-  /** Options forwarded to the update — `onOutput` to stream progress,
+  /** Options forwarded to the update - `onOutput` to stream progress,
    * `parallel`, `target`, and so on. */
   readonly up?: UpOptions;
   /** Run `preview` before `up`, returning its result.
@@ -221,7 +221,7 @@ export type DeployOptions = StackOptions & {
 export interface DeployResult {
   /** The selected stack, so teardown needs no second `createOrSelectStack`. */
   readonly stack: Stack;
-  /** The update's result — `outputs` and `summary` live here. */
+  /** The update's result - `outputs` and `summary` live here. */
   readonly result: UpResult;
   /** Present only when `preview` was requested. */
   readonly preview?: PreviewResult;
@@ -231,8 +231,8 @@ export interface DeployResult {
  * Select or create the stack, apply config, optionally preview, then up.
  *
  * The common path, assembled from the primitives above. Anything more
- * involved — refreshing first, inspecting the plan before deciding, retrying a
- * stage — should compose those directly rather than grow options here.
+ * involved - refreshing first, inspecting the plan before deciding, retrying a
+ * stage - should compose those directly rather than grow options here.
  *
  * @param opts - Which stack, and what to do with it.
  * @returns The stack handle alongside the results, so callers can tear down

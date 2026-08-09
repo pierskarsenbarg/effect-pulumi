@@ -1,6 +1,6 @@
 /**
  * Exercises `effectify` against the *real* @pulumi/aws package (via Pulumi's
- * mock resource monitor — no credentials, no cloud calls).
+ * mock resource monitor - no credentials, no cloud calls).
  *
  * The fake classes in effectify.unit.test.ts are plain objects, so they can't
  * catch problems that only show up on a genuine provider package: module
@@ -92,7 +92,7 @@ describe("real @pulumi/aws proxy", () => {
   });
 
   it("the s3-bucket program builds and returns the expected stack-output shape", async () => {
-    // `UpResult.outputs` is an OutputMap — `{ [key]: { value, secret } }` —
+    // `UpResult.outputs` is an OutputMap - `{ [key]: { value, secret } }` -
     // built by the CLI from whatever the inline program *returns*. So the
     // program must return raw values; wrapping them itself would nest them as
     // `outputs.bucketId.value.value`.

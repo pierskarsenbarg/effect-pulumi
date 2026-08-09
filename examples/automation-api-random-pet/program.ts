@@ -7,7 +7,7 @@ const erandom = effectify(random);
 
 /** The Pulumi program itself, as an Effect.
  *
- * Nothing here knows it is being run by the Automation API — this is the same
+ * Nothing here knows it is being run by the Automation API - this is the same
  * program you would put in an `index.ts` next to a `Pulumi.yaml`. */
 export const program = Effect.gen(function* () {
   const config = new pulumi.Config();

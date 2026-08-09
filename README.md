@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/pierskarsenbarg/effect-pulumi/actions/workflows/ci.yml/badge.svg)](https://github.com/pierskarsenbarg/effect-pulumi/actions/workflows/ci.yml)
 
-Gives Pulumi programs Effect's composability — typed errors, sequenced
-dependent resources, and structured result inspection — without hand-wrapping
+Gives Pulumi programs Effect's composability - typed errors, sequenced
+dependent resources, and structured result inspection - without hand-wrapping
 every resource constructor.
 
 ## Why
@@ -42,7 +42,7 @@ Requires Node.js ≥ 22 (the floor `@pulumi/pulumi` itself sets). The peer
 ranges are `@pulumi/pulumi ^3.0.0` and `effect ^3.0.0`, currently verified
 against `@pulumi/pulumi` 3.255 and `effect` 3.22.
 
-`@pulumi/pulumi` and `effect` are peer dependencies — this library extends
+`@pulumi/pulumi` and `effect` are peer dependencies - this library extends
 your Pulumi and Effect runtimes, so it must use the same copies you do rather
 than bundle its own. npm 7+ installs peers automatically; on pnpm or Yarn you
 may need them explicitly:
@@ -70,7 +70,7 @@ const eaws = effectify(aws); // wrap the provider package once
 
 const program = Effect.gen(function* () {
   const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
-  //    ^ Effect<aws.s3.Bucket, PulumiError> — no Effect.sync / Effect.try
+  //    ^ Effect<aws.s3.Bucket, PulumiError> - no Effect.sync / Effect.try
 
   const object = yield* eaws.s3.BucketObject("readme", {
     bucket: fromOutput(bucket.id), // an Effect in an args slot, auto-resolved
@@ -92,15 +92,15 @@ inline program and deploy it from the same process.
 The full version of the program above lives in
 [`test/s3-bucket-program.ts`](test/s3-bucket-program.ts). It sits in `test/`
 rather than `examples/` because it is a fixture rather than a project you can
-run — its only consumer today is the mocked suite in `npm test`, exercising a
+run - its only consumer today is the mocked suite in `npm test`, exercising a
 real `@pulumi/aws` package under Pulumi's mocks, no cloud account involved.
 
-For examples you can actually deploy, see [`examples/`](examples/) — those use
+For examples you can actually deploy, see [`examples/`](examples/) - those use
 `@pulumi/random`, whose resources take no inputs from one another, so they
 don't show `fromOutput` or an Effect in an args slot. For that, see
 [`test/random-password-file-program.ts`](test/random-password-file-program.ts):
 a `RandomPassword`'s Output flows into a `local.File`'s args, and it's
-deployed for real by `npm run test:live` — no cloud credentials needed, since
+deployed for real by `npm run test:live` - no cloud credentials needed, since
 `@pulumi/local` only touches the local filesystem.
 
 ## What `effectify` does
@@ -110,7 +110,7 @@ deployed for real by `npm run test:live` — no cloud credentials needed, since
 | Export kind | Result |
 | --- | --- |
 | `CustomResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, and any **top-level** args field may additionally be an `Effect` (several resolve concurrently) |
-| `ComponentResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, args passed through verbatim — never auto-lifted |
+| `ComponentResource` subclass | `(name, args, opts?) => Effect<R, PulumiError>`, args passed through verbatim - never auto-lifted |
 | Namespace object (`aws.s3`) | Recursively proxied, lazily |
 | Invoke function (`aws.s3.getBucket`) | Returns `Effect<R, PulumiError>` instead of `Promise<R>` |
 | `*Output` invoke variant (`getBucketOutput`) | Passed through untouched (returns an `Output`, as upstream) |
@@ -123,16 +123,16 @@ Semantics worth knowing:
   needs no unwrapping or rewrapping.
 - **Statics survive the wrapping.** `eaws.s3.Bucket.get(name, id)` (adopt an
   existing resource), `isInstance`, and any other codegen'd static forward to
-  the original class — `instanceof` works too — so the wrapped package can be
+  the original class - `instanceof` works too - so the wrapped package can be
   the only import a program needs.
 - **Component args are never lifted.** Component args aren't guaranteed to be
-  `Input<T>`-shaped the way codegen'd `CustomResource` args are — a component
-  may do synchronous work on a bare primitive in its constructor — so passing
+  `Input<T>`-shaped the way codegen'd `CustomResource` args are - a component
+  may do synchronous work on a bare primitive in its constructor - so passing
   an `Effect` where a component expects a primitive is a type error. See
   [Component resources](#component-resources) for the patterns this implies.
 - **Invokes start when you call them.** Whether a function is async is only
   knowable by calling it, so `eaws.getAmi(args)` fires the invoke immediately
-  and hands back an Effect that resolves the already-in-flight call — the
+  and hands back an Effect that resolves the already-in-flight call - the
   failure still lands in the typed error channel, but `Effect.retry` re-awaits
   the same call rather than re-invoking. To re-invoke per attempt, defer the
   call site: `Effect.suspend(() => eaws.getAmi(args))`.
@@ -144,8 +144,8 @@ model.
 ## Component resources
 
 Component resources are fully supported as *consumers*: `effectify` detects
-any class extending `pulumi.ComponentResource` — your own, or those in a
-component-based package like `@pulumi/awsx` — and wraps its constructor into
+any class extending `pulumi.ComponentResource` - your own, or those in a
+component-based package like `@pulumi/awsx` - and wraps its constructor into
 an Effect factory, exactly like a custom resource. Construction errors land
 in the typed error channel, and the component sequences with `yield*` like
 everything else.
@@ -156,17 +156,17 @@ substituting a resolved value is always legal. Component args are
 hand-authored: a component may take a bare `replicas: number` and do
 synchronous arithmetic on it inside its constructor, and an `Effect` silently
 swapped in there would break it. So for components, `effectify` refuses at
-the type level instead of guessing — resolve your Effects first, then
+the type level instead of guessing - resolve your Effects first, then
 construct with plain values:
 
 ```ts
 const eawsx = effectify(awsx);
 
 const program = Effect.gen(function* () {
-  // ✗ type error — component args are never auto-lifted:
+  // ✗ type error - component args are never auto-lifted:
   //   eawsx.ecs.Cluster("app", { vpcId: fromOutput(vpc.id) })
 
-  // ✓ resolve first, then pass a plain value (or just pass the Output —
+  // ✓ resolve first, then pass a plain value (or just pass the Output -
   //   Input<T>-typed component args accept those as in vanilla Pulumi):
   const vpcId = yield* fromOutput(vpc.id);
   const cluster = yield* eawsx.ecs.Cluster("app", { vpcId });
@@ -175,7 +175,7 @@ const program = Effect.gen(function* () {
 
 *Authoring* a component is different: a `ComponentResource` constructor is
 synchronous, so you cannot `yield*` inside it. Write a component's internals
-in plain Pulumi — its children are ordinary constructor calls — and use
+in plain Pulumi - its children are ordinary constructor calls - and use
 `effectify` at the program level, where composition actually happens. The
 wrapped and unwrapped worlds interoperate freely: a component built from raw
 Pulumi children can itself be constructed through an effectified package,
@@ -200,7 +200,7 @@ const exit = await Effect.runPromiseExit(
 // Exit/Cause instead of a thrown, stringified error
 ```
 
-Every operation forwards the matching Pulumi options type — `UpOptions`,
+Every operation forwards the matching Pulumi options type - `UpOptions`,
 `PreviewOptions`, `RefreshOptions`, `DestroyOptions`, `RemoveOptions`. Pass
 `onOutput` to stream the CLI's progress; without it a multi-minute deploy
 prints nothing until it finishes. Stacks can be inline programs
@@ -209,12 +209,12 @@ prints nothing until it finishes. Stacks can be inline programs
 Previewing is opt-in via `preview: true` (or a `PreviewOptions` object), and
 its result comes back on `DeployResult.preview`. It is off by default because
 a preview is a full engine run against the provider, so previewing and then
-immediately upping does the work twice — and `up` surfaces the same failures.
+immediately upping does the work twice - and `up` surfaces the same failures.
 
 Teardown is two steps. `destroyStack` removes the resources but leaves the
 stack registered with the backend; `teardownStack` destroys and then deletes
 it, which is what you want for per-run stacks. `RemoveOptions.force` deletes a
-stack while leaving its resources alive and billing — it is reachable, but it
+stack while leaving its resources alive and billing - it is reachable, but it
 orphans them.
 
 ## Handling failures
@@ -258,7 +258,7 @@ resource, or `Effect.exit` / `runPromiseExit` at the edge to inspect the full
 | `stackOutputs(stack)` | Read current outputs without running an update |
 | `destroyStack(stack, opts?)` | Destroy resources; the stack stays registered |
 | `removeStack(stack, opts?)` | Delete the stack from the backend |
-| `teardownStack(stack, opts?)` | Destroy then remove — skips the remove if the destroy failed |
+| `teardownStack(stack, opts?)` | Destroy then remove - skips the remove if the destroy failed |
 | `PulumiError` | Construction / Output-resolution failure; carries `cause` |
 | `AutomationError` | Lifecycle failure; carries `stage` and `cause` |
 

@@ -15,12 +15,12 @@ describe("random-password-file program (live, real Automation API deploy)", () =
     "deploys against real providers, resolves outputs, and tears down cleanly",
     () => {
       // Unique per run so repeated/parallel runs don't collide on stack
-      // name — swap for whatever naming convention fits your CI.
+      // name - swap for whatever naming convention fits your CI.
       const stackName = `test-${Date.now()}`;
       const envName = `live-test-${Date.now()}`;
 
       // Stream the CLI's output. A live deploy runs for minutes, and when it
-      // fails this is the only thing that explains why — the thrown error
+      // fails this is the only thing that explains why - the thrown error
       // alone rarely does. Kept inline next to the `deploy` call it belongs
       // to; this doubles as the example of how to wire progress output.
       // oxlint-disable-next-line unicorn/consistent-function-scoping
@@ -50,7 +50,7 @@ describe("random-password-file program (live, real Automation API deploy)", () =
           expect(result.outputs.fileName?.value).toContain(`${envName}-file`);
 
           // `contentSha256` is computed by the provider from the file it
-          // actually wrote, not supplied by the program — matching it against
+          // actually wrote, not supplied by the program - matching it against
           // an independently computed hash of the password is what confirms
           // the RandomPassword -> File dependency really ran, rather than
           // just checking that a value we handed in comes back unchanged.
@@ -62,6 +62,6 @@ describe("random-password-file program (live, real Automation API deploy)", () =
         })
       );
     },
-    { timeout: 300_000 } // real cloud deploys are slow — default test timeout won't cut it
+    { timeout: 300_000 } // real cloud deploys are slow - default test timeout won't cut it
   );
 });

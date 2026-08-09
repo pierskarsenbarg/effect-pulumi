@@ -1,5 +1,5 @@
 /**
- * effect-pulumi — Effect bindings for Pulumi.
+ * effect-pulumi - Effect bindings for Pulumi.
  *
  * Three independent pieces, usable together or apart:
  *
@@ -11,7 +11,7 @@
  *   primitives they compose) drive stacks from ordinary Node programs.
  *
  * Failures are typed: {@link PulumiError} for resource and Output problems,
- * {@link AutomationError} — carrying the `stage` that failed — for lifecycle
+ * {@link AutomationError} - carrying the `stage` that failed - for lifecycle
  * calls.
  *
  * `@pulumi/pulumi` and `effect` are peer dependencies, and must resolve to a

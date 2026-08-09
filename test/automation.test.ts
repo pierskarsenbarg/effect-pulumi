@@ -145,7 +145,7 @@ describe("createOrSelectStack", () => {
         stackName: "the-stack",
         workDir: "/tmp/project",
       });
-      // Must be the LocalProgramArgs shape — no projectName, no program.
+      // Must be the LocalProgramArgs shape - no projectName, no program.
       expect(h.createArgs).toEqual({
         stackName: "the-stack",
         workDir: "/tmp/project",
@@ -162,7 +162,7 @@ describe("createOrSelectStack", () => {
   );
 });
 
-describe("deploy — lifecycle sequencing", () => {
+describe("deploy - lifecycle sequencing", () => {
   it.effect(
     "runs createOrSelectStack then up, with no preview by default",
     () =>
@@ -283,7 +283,7 @@ describe("options passthrough", () => {
   );
 });
 
-describe("deploy — failure tagging and short-circuiting", () => {
+describe("deploy - failure tagging and short-circuiting", () => {
   const cases: ReadonlyArray<{
     readonly failAt: Stage;
     readonly ranBefore: readonly string[];

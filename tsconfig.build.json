@@ -1,6 +1,6 @@
 {
   // Src-scoped config. tsup consumes this (see tsup.config.ts) so that
-  // generated .d.ts files are built from the library only — with the
+  // generated .d.ts files are built from the library only - with the
   // type-check config's wider include, tests and examples would leak into the
   // published declarations.
   //

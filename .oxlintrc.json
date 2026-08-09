@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
 
-  // `import` earns its place for one rule in particular — see
+  // `import` earns its place for one rule in particular - see
   // `import/extensions` below.
   "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "vitest"],
 
@@ -20,7 +20,7 @@
   "rules": {
     // Not on in any category, and the one lint this repo most needs. `module:
     // NodeNext` plus `"type": "module"` means every relative specifier has to
-    // name the *emitted* `.js` file — `./errors.js`, never `./errors`. tsc
+    // name the *emitted* `.js` file - `./errors.js`, never `./errors`. tsc
     // resolves the extensionless form happily and Node then fails at runtime,
     // so nothing else in the toolchain catches it. `ignorePackages` keeps the
     // rule off bare specifiers like `@pulumi/pulumi`.

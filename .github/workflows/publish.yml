@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      # Strict vMAJOR.MINOR.PATCH only — not the looser `v*`, which would
+      # Strict vMAJOR.MINOR.PATCH only - not the looser `v*`, which would
       # also match stray/non-release tags and hand them straight to a
       # publish gate. This is what `npm version <bump>` produces by default.
       - "v[0-9]+.[0-9]+.[0-9]+"
@@ -27,13 +27,13 @@ jobs:
       - name: Install
         run: npm ci
 
-      # The tag is authoritative for the version — package.json's committed
+      # The tag is authoritative for the version - package.json's committed
       # version is not bumped as part of a release. `--no-git-tag-version`
       # means this only rewrites the working tree's package.json (and
       # package-lock.json's top-level version field): no commit, no push,
       # nothing leaves this checkout. Runs before the gate so everything
       # after this, including what the packaging suite packs and consumes,
-      # sees the real version — the same version `publish` will derive
+      # sees the real version - the same version `publish` will derive
       # independently from the same tag.
       - name: Set package.json version from the tag
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
@@ -77,13 +77,13 @@ jobs:
       - name: Install
         run: npm ci
 
-      # Fresh checkout, fresh working tree — this job re-derives the version
+      # Fresh checkout, fresh working tree - this job re-derives the version
       # from the tag itself rather than inheriting anything from `test`.
       - name: Set package.json version from the tag
         run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
 
       # `npm publish` re-runs `prepublishOnly` (check+test+test:package)
-      # itself as a redundant safety net — `needs: test` above is what
+      # itself as a redundant safety net - `needs: test` above is what
       # actually gates whether this job runs at all.
       - name: Publish to npm
         run: npm publish --access public --provenance

@@ -1,8 +1,8 @@
 /**
  * Shared fixture: a small program that uses the parts of the library the
- * `@pulumi/random` examples cannot reach on their own — `fromOutput`/
+ * `@pulumi/random` examples cannot reach on their own - `fromOutput`/
  * `fromOutputs`, an Effect passed into a resource's args, and one resource
- * depending on another's Output — without needing cloud credentials.
+ * depending on another's Output - without needing cloud credentials.
  * `RandomPassword`'s output flows into a `local.File`'s content, and
  * `fromOutputs` pulls back `contentSha256`: not an input we supplied, but a
  * checksum the provider computes from whatever it actually wrote to disk.
@@ -12,7 +12,7 @@
  *
  * Deliberately not named `*.test.ts`: vitest's `include` globs would try to
  * collect it as a suite and fail on finding no tests. Its only consumer is
- * `random-password.live.test.ts`, which deploys it for real — `@pulumi/local`
+ * `random-password.live.test.ts`, which deploys it for real - `@pulumi/local`
  * only touches the local filesystem, so this needs the Pulumi CLI and a state
  * backend but no credentials.
  */
@@ -31,14 +31,14 @@ const localFileProgram = (envName: string) =>
       length: 20,
     });
 
-    // The password Output flows straight into another resource's args —
+    // The password Output flows straight into another resource's args -
     // arg-lifting resolves it before `File` is constructed.
     const file = yield* elocal.File(`${envName}-file`, {
       filename: `${envName}-file`,
       content: fromOutput(pw.result),
     });
 
-    // `contentSha256` isn't in `FileArgs` — it can't be supplied, only read
+    // `contentSha256` isn't in `FileArgs` - it can't be supplied, only read
     // back once the provider has computed it from the file it wrote.
     const { contentSha256, fileName, password } = yield* fromOutputs({
       contentSha256: file.contentSha256,

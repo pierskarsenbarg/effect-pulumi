@@ -3,7 +3,7 @@
 Drives an **inline** Pulumi program with the Automation API, using
 `effect-pulumi` on both sides: `effectify` inside the program, and the
 Automation wrappers (`deploy`, `createOrSelectStack`, `destroyStack`) around
-it. There is no `Pulumi.yaml` — the program is the function in `program.ts`.
+it. There is no `Pulumi.yaml` - the program is the function in `program.ts`.
 
 ## Run it
 
@@ -25,12 +25,12 @@ Requirements: the Pulumi CLI on `PATH`, and credentials for a backend
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PULUMI_STACK_NAME` | `dev` | Stack to create/select |
-| `PET_LENGTH` | `3` | Words in the generated pet name — set as stack config |
+| `PET_LENGTH` | `3` | Words in the generated pet name - set as stack config |
 
 ## In GitHub Actions
 
 This repo's own `.github/workflows/ci.yml` runs the example on every PR, in the
-`Examples (local state)` job — read that for the working version. It uses a
+`Examples (local state)` job - read that for the working version. It uses a
 local file backend rather than Pulumi Cloud, so it needs no secrets and works
 on forked PRs:
 

@@ -10,7 +10,7 @@ export const projectName = "effect-pulumi-automation-random-pet";
 export const stackName = process.env.PULUMI_STACK_NAME ?? "dev";
 
 /** Stream the CLI's progress. Without an `onOutput` nothing is printed while
- * an operation runs — the text only appears on the result once it finishes. */
+ * an operation runs - the text only appears on the result once it finishes. */
 export const onOutput = (out: string) => {
   process.stdout.write(out);
 };
