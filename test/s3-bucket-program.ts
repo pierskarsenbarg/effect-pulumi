@@ -1,13 +1,13 @@
 /**
  * Shared fixture: a small S3 program that uses the parts of the library the
- * `@pulumi/random` examples cannot reach — `fromOutput`/`fromOutputs`, an
+ * `@pulumi/random` examples cannot reach - `fromOutput`/`fromOutputs`, an
  * Effect passed into a resource's args, and one resource depending on
  * another's Output.
  *
  * Deliberately not named `*.test.ts`: vitest's `include` globs would try to
  * collect it as a suite and fail on finding no tests. Its only consumer is
  * `aws-provider.mocked.test.ts`, which runs it under Pulumi's mocks in the
- * default suite — real `@pulumi/aws` classes and lazy namespace getters, but
+ * default suite - real `@pulumi/aws` classes and lazy namespace getters, but
  * no cloud calls. Nothing here is deployed for real: the live suite
  * (`npm run test:live`) exercises `random-password-file-program.ts` instead,
  * which needs no cloud credentials at all.
@@ -26,7 +26,7 @@ const s3BucketProgram = (envName: string) =>
       forceDestroy: true,
     });
 
-    // Passing an Effect directly into an args field — auto-resolved by
+    // Passing an Effect directly into an args field - auto-resolved by
     // effectify before BucketObject is constructed, no fromOutputs needed
     // for this one since we only need a single field.
     const object = yield* eaws.s3.BucketObject(`${envName}-readme`, {

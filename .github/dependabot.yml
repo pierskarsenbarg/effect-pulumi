@@ -34,7 +34,7 @@ updates:
           - patch
 
     # Majors are deliberately left out of the groups above so each one
-    # arrives as its own PR — a @pulumi/aws or vitest major is a real
+    # arrives as its own PR - a @pulumi/aws or vitest major is a real
     # migration, not something to review alongside routine patches.
 
   - package-ecosystem: github-actions

@@ -11,7 +11,7 @@ import {
 } from "../src/index.js";
 
 // ---------------------------------------------------------------------------
-// Mock resource monitor — present purely so the fake resource subclasses below
+// Mock resource monitor - present purely so the fake resource subclasses below
 // can construct at all. No real provider, no credentials.
 // ---------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ class FakeQueue extends pulumi.CustomResource {
 }
 
 interface FakeStackArgs {
-  /** Deliberately a bare primitive, not an Input<T> — the component does
+  /** Deliberately a bare primitive, not an Input<T> - the component does
    * synchronous work on it in the constructor. */
   readonly replicas: number;
 }
@@ -134,7 +134,7 @@ const eprovider = effectify(fakeProvider);
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("effectify — namespace traversal", () => {
+describe("effectify - namespace traversal", () => {
   it.effect("recurses into nested namespace objects", () =>
     Effect.gen(function* () {
       expect(typeof eprovider.storage).toBe("object");
@@ -180,7 +180,7 @@ describe("effectify — namespace traversal", () => {
   );
 });
 
-describe("effectify — wrapper identity and statics", () => {
+describe("effectify - wrapper identity and statics", () => {
   it.effect("hands back the identical wrapper on every access", () =>
     Effect.gen(function* () {
       // Un-memoized wrapping would allocate a fresh closure per property
@@ -213,7 +213,7 @@ describe("effectify — wrapper identity and statics", () => {
   );
 });
 
-describe("effectify — invoke wrapping", () => {
+describe("effectify - invoke wrapping", () => {
   it.effect("returns an Effect that resolves the invoke's result", () =>
     Effect.gen(function* () {
       const info = yield* eprovider.storage.getThingInfo({ name: "assets" });
@@ -261,7 +261,7 @@ describe("effectify — invoke wrapping", () => {
   );
 });
 
-describe("effectify — CustomResource wrapping", () => {
+describe("effectify - CustomResource wrapping", () => {
   it.effect("returns an Effect that constructs the resource", () =>
     Effect.gen(function* () {
       const bucket = yield* eprovider.storage.FakeBucket("wrapped", {
@@ -279,7 +279,7 @@ describe("effectify — CustomResource wrapping", () => {
     })
   );
 
-  it.effect("is lazy — nothing is constructed until the Effect runs", () =>
+  it.effect("is lazy - nothing is constructed until the Effect runs", () =>
     Effect.gen(function* () {
       let constructed = false;
       const spied = {
@@ -332,7 +332,7 @@ describe("effectify — CustomResource wrapping", () => {
   );
 });
 
-describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => {
+describe("effectify - Effect-valued arg auto-lifting (CustomResource)", () => {
   it.effect("resolves Effect args before constructing", () =>
     Effect.gen(function* () {
       const source = yield* eprovider.storage.FakeBucket("source", {
@@ -340,7 +340,7 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
       });
 
       const derived = yield* eprovider.storage.FakeBucket("derived", {
-        // An Effect in an args slot — resolved by effectify, no manual
+        // An Effect in an args slot - resolved by effectify, no manual
         // unwrapping at the call site.
         bucketName: fromOutput(source.bucketName),
       });
@@ -391,7 +391,7 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
         bucketName: "plain-source-bucket",
       });
 
-      // No fromOutput/rewrapping — a bare Output must work exactly as it
+      // No fromOutput/rewrapping - a bare Output must work exactly as it
       // does in vanilla Pulumi.
       const derived = yield* eprovider.storage.FakeBucket("plain-derived", {
         bucketName: source.bucketName,
@@ -411,7 +411,7 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
     Effect.gen(function* () {
       // `bucketName` can only complete after `region` has run. One-at-a-time
       // resolution walks entries in insertion order, so it would park on
-      // `bucketName` forever — the timeout (needs the live clock, hence
+      // `bucketName` forever - the timeout (needs the live clock, hence
       // it.live) is what turns that regression into a failure, not a hang.
       const latch = yield* Deferred.make<void>();
       const bucket = yield* eprovider.storage
@@ -447,7 +447,7 @@ describe("effectify — Effect-valued arg auto-lifting (CustomResource)", () => 
   );
 });
 
-describe("effectify — ComponentResource wrapping", () => {
+describe("effectify - ComponentResource wrapping", () => {
   it.effect("wraps the constructor but passes args through verbatim", () =>
     Effect.gen(function* () {
       const args = { replicas: 3 };
@@ -524,8 +524,8 @@ describe("output bridge", () => {
       // The guard here is the *type*, not the assertion: interfaces get no
       // implicit index signature, so constraining the parameter with
       // `Record<string, Output<any>>` rejects `Endpoints` outright. Only
-      // `npm run typecheck` can go red on that — vitest transpiles without
-      // checking — so this must stay covered by the typecheck script.
+      // `npm run typecheck` can go red on that - vitest transpiles without
+      // checking - so this must stay covered by the typecheck script.
       interface Endpoints {
         url: pulumi.Output<string>;
         port: pulumi.Output<number>;
@@ -560,10 +560,10 @@ describe("output bridge", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Type-level checks (compile-time only — `npm run build` is the assertion)
+// Type-level checks (compile-time only - `npm run build` is the assertion)
 // ---------------------------------------------------------------------------
 
-describe("effectify — type level", () => {
+describe("effectify - type level", () => {
   it.effect("types resource factories precisely", () =>
     Effect.gen(function* () {
       const bucketEffect: Effect.Effect<FakeBucket, PulumiError> =
@@ -571,13 +571,13 @@ describe("effectify — type level", () => {
       const bucket = yield* bucketEffect;
       const _name: pulumi.Output<string> = bucket.bucketName;
 
-      // @ts-expect-error — unknown arg fields are still rejected.
+      // @ts-expect-error - unknown arg fields are still rejected.
       yield* eprovider.storage.FakeBucket("typed-bad", { nope: 1 });
 
       // ComponentResource args are never auto-lifted, so an Effect where a
       // bare primitive is expected must not type-check.
       yield* eprovider.compute.FakeStack("typed-component", {
-        // @ts-expect-error — no lifting for components.
+        // @ts-expect-error - no lifting for components.
         replicas: Effect.succeed(2),
       });
 
@@ -609,13 +609,13 @@ describe("effectify — type level", () => {
 //
 // The checks above all go through `eprovider`, so they only ever exercise the
 // type as *inferred* from `effectify(...)`. `Effectify<T>` is exported for the
-// case that inference cannot cover — naming the type of an already-wrapped
+// case that inference cannot cover - naming the type of an already-wrapped
 // package, so it can be annotated, passed to a helper, or stored on an
 // interface. Nothing else in the repo used it by name, so nothing caught a
 // regression in that use.
 // ---------------------------------------------------------------------------
 
-/** Invariant type equality — `extends` alone would accept a wider or narrower
+/** Invariant type equality - `extends` alone would accept a wider or narrower
  * type on either side, which is exactly the kind of drift worth catching. */
 type Equals<A, B> =
   (<G>() => G extends A ? 1 : 2) extends <G>() => G extends B ? 1 : 2
@@ -657,7 +657,7 @@ type _CustomIsLifted = Assert<
   >
 >;
 
-// Component args are passed through untouched — the asymmetry that makes
+// Component args are passed through untouched - the asymmetry that makes
 // `LiftedArgs` apply to one branch of the mapping and not the other.
 type _ComponentIsNotLifted = Assert<
   Equals<
@@ -683,7 +683,7 @@ type _PlainValueUnchanged = Assert<
   Equals<Effectify<FakeProvider>["version"], string>
 >;
 
-describe("effectify — Effectify<T> by name", () => {
+describe("effectify - Effectify<T> by name", () => {
   it.effect("annotating with Effectify<T> yields a working wrapper", () =>
     Effect.gen(function* () {
       // The type-level assertions above are the point of this section; this

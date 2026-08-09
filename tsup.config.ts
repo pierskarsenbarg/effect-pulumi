@@ -14,7 +14,7 @@ export default defineConfig({
   // Type declarations are generated from the src-scoped config, so tests and
   // examples stay out of the published types.
   tsconfig: "tsconfig.build.json",
-  // @pulumi/pulumi and effect are peerDependencies — they must resolve to the
+  // @pulumi/pulumi and effect are peerDependencies - they must resolve to the
   // consumer's copy, never be inlined here. tsup externalises deps and peers
   // by default; this is belt-and-braces because inlining either one would be
   // a silent, hard-to-diagnose breakage (duplicate Effect runtime, or a

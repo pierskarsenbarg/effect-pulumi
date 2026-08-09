@@ -7,8 +7,8 @@
   "printWidth": 80,
   "trailingComma": "es5",
 
-  // On by default. package.json's field order here is deliberate — identity,
-  // then entry points, then scripts, then the peer/dev dependency split —
+  // On by default. package.json's field order here is deliberate - identity,
+  // then entry points, then scripts, then the peer/dev dependency split -
   // and the sort scatters it.
   "sortPackageJson": false,
 
@@ -18,7 +18,7 @@
     "package-lock.json",
 
     // Two reasons, both specific to the prose in this repo. Table alignment
-    // measures `—` and `→` as one column each, so the docs' tables come out
+    // measures `-` and `→` as one column each, so the docs' tables come out
     // misaligned in source. And the README's ```ts fences are Effect snippets
     // lifted out of generator bodies: formatted as standalone programs they
     // are not in a generator, so `yield* eaws.s3.Bucket(...)` reparses as the

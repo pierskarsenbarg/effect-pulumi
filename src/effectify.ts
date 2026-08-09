@@ -1,5 +1,5 @@
 /**
- * effectify — auto-wrap a Pulumi provider package (e.g. @pulumi/aws,
+ * effectify - auto-wrap a Pulumi provider package (e.g. @pulumi/aws,
  * @pulumi/cloudflare) so every resource constructor becomes an
  * Effect-returning factory, without the caller ever writing `Effect.sync`.
  *
@@ -10,7 +10,7 @@
  *
  *   const program = Effect.gen(function* () {
  *     const bucket = yield* eaws.s3.Bucket("my-bucket", { forceDestroy: true });
- *     //    ^ Effect<aws.s3.Bucket, PulumiError> — no manual wrapping
+ *     //    ^ Effect<aws.s3.Bucket, PulumiError> - no manual wrapping
  *   });
  *
  * How it works:
@@ -21,14 +21,14 @@
  *    invoke function" (e.g. `aws.s3.getBucket`).
  *  - Namespace objects get recursively proxied (lazily, memoized).
  *  - CustomResource constructors get wrapped so any field in their args
- *    object may *additionally* be an Effect — resolved (concurrently, they
+ *    object may *additionally* be an Effect - resolved (concurrently, they
  *    are independent by construction) before construction. This is safe
  *    because codegen guarantees CustomResource args are always
  *    Record<string, Input<T>>.
  *  - Wrapped constructors keep their static members: `Bucket.get(...)`,
  *    `Bucket.isInstance(...)` and friends forward to the original class, so
  *    the wrapped package can be the only import a program needs.
- *  - ComponentResource constructors get wrapped with no arg-lifting — args
+ *  - ComponentResource constructors get wrapped with no arg-lifting - args
  *    pass through exactly as declared, since component args aren't
  *    guaranteed to be Input<T>-shaped (hand-authored, may do synchronous
  *    work on a bare primitive inside the constructor).
@@ -38,12 +38,12 @@
  *    becomes an Effect, anything else is returned as-is. That means the
  *    invoke *starts* at the call site (see the caveat on `wrapInvokeLike`);
  *    `*Output` invoke variants return an Output, which is not thenable, so
- *    they pass through untouched — matching the type-level mapping, which
+ *    they pass through untouched - matching the type-level mapping, which
  *    only rewrites Promise-returning signatures.
  *  - Everything else (enums, plain values, non-resource classes) passes
  *    through untouched.
  *
- * Resource registration remains synchronous under the hood — Effect.try
+ * Resource registration remains synchronous under the hood - Effect.try
  * runs its thunk immediately. This only removes hand-written wrapper
  * boilerplate, not Pulumi's execution model.
  */
@@ -71,12 +71,12 @@ const isComponentResourceConstructor = (
 
 /** An object whose string-keyed properties we only ever *read*. Distinct from
  * `Record<string, unknown>`, which additionally claims the properties are
- * writable and that the object declares an index signature — neither is true
+ * writable and that the object declares an index signature - neither is true
  * of a codegen'd `BucketArgs`, and neither is something this module relies on. */
 type UnknownProps = { readonly [key: string]: unknown };
 
 /** Is this a namespace to recurse into? The narrowed type is only ever handed
- * to `effectifyInner`, which takes `object` — so claim exactly that and no
+ * to `effectifyInner`, which takes `object` - so claim exactly that and no
  * more. */
 const isNamespace = (value: unknown): value is object =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -89,7 +89,7 @@ const isArgsObject = (value: unknown): value is UnknownProps =>
   isNamespace(value);
 
 /** Note: `pulumi.Output` is deliberately not thenable, so `*Output` invoke
- * variants fail this check and pass through unwrapped — keeping the runtime
+ * variants fail this check and pass through unwrapped - keeping the runtime
  * behaviour aligned with the type mapping, which only rewrites
  * Promise-returning signatures. */
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
@@ -179,7 +179,7 @@ function resolveLiftedArgs(args: unknown): Effect.Effect<unknown, PulumiError> {
   }
 
   // The arg Effects are independent of one another, so resolve them
-  // concurrently — it matters when several of them await slow Outputs.
+  // concurrently - it matters when several of them await slow Outputs.
   return Effect.map(
     Effect.all(
       effectEntries.map(([key, effectValue]) =>
@@ -248,7 +248,7 @@ function wrapResourceCtor(Ctor: new (...args: any[]) => pulumi.Resource) {
  * intercepted.
  *
  * Caveat, stated openly: whether a function is async is only knowable by
- * calling it, so the invoke *starts* when the factory is called — the Effect
+ * calling it, so the invoke *starts* when the factory is called - the Effect
  * resolves an already-in-flight Promise rather than deferring the call. Two
  * consequences:
  *  - `Effect.retry` re-awaits the same call instead of re-invoking. To
@@ -274,7 +274,7 @@ function wrapInvokeLike(fn: Function): Function {
 }
 
 /** Wrapped constructors are cached so repeated reads of the same property
- * hand back the same function — identity checks like
+ * hand back the same function - identity checks like
  * `eaws.s3.Bucket === eaws.s3.Bucket` hold, and the `get` and
  * `getOwnPropertyDescriptor` traps agree on a property's value. */
 const wrapperCache = new WeakMap<object, unknown>();
@@ -326,7 +326,7 @@ function effectifyInner<T extends object>(mod: T): Effectify<T> {
     getOwnPropertyDescriptor(_target, prop) {
       const descriptor = Reflect.getOwnPropertyDescriptor(mod, prop);
       if (!descriptor) return undefined;
-      // Must be reported as configurable — the target does not actually have
+      // Must be reported as configurable - the target does not actually have
       // the property, so claiming otherwise breaks the proxy invariants.
       return {
         value: effectifyValue(Reflect.get(mod, prop)),
@@ -349,7 +349,7 @@ function effectifyInner<T extends object>(mod: T): Effectify<T> {
  * constructor into an `Effect`-returning factory and every `Promise`-returning
  * invoke into an `Effect`-returning function.
  *
- * Call this once per package at module scope and export the result — the
+ * Call this once per package at module scope and export the result - the
  * wrapper is cached, so repeated calls and repeated property reads hand back
  * the same objects, but there is no reason to re-wrap.
  *
@@ -379,7 +379,7 @@ function effectifyInner<T extends object>(mod: T): Effectify<T> {
  * ```
  *
  * @throws Nothing. Failures surface in the returned Effect's error channel as
- * {@link PulumiError} — including synchronous throws from the constructor.
+ * {@link PulumiError} - including synchronous throws from the constructor.
  *
  * @see {@link Effectify} for the type-level mapping.
  */

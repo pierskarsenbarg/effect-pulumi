@@ -38,7 +38,7 @@ export const fromOutput = <T>(
   });
 
 /**
- * Lift a record of Outputs into a single Effect of the resolved record — use
+ * Lift a record of Outputs into a single Effect of the resolved record - use
  * this right after constructing a resource to grab several fields at once.
  *
  * Resolves them together via `pulumi.all`, so it costs one await rather than

@@ -22,8 +22,8 @@ export class PulumiError extends Data.TaggedError("PulumiError")<{
    * Not necessarily an `Error`. */
   readonly cause: unknown;
 }> {
-  /** Derived so anything reading `.message` — plain logging, test failure
-   * output, non-Effect error handling — sees the underlying failure instead
+  /** Derived so anything reading `.message` - plain logging, test failure
+   * output, non-Effect error handling - sees the underlying failure instead
    * of an empty string. */
   get message(): string {
     return describeCause(this.cause);
@@ -64,7 +64,7 @@ export class AutomationError extends Data.TaggedError("AutomationError")<{
    * usually a `CommandError` carrying the CLI's stdout and stderr. */
   readonly cause: unknown;
 }> {
-  /** `"<stage> failed: <cause>"` — the stage is included because the cause
+  /** `"<stage> failed: <cause>"` - the stage is included because the cause
    * alone rarely says which operation produced it. */
   get message(): string {
     return `${this.stage} failed: ${describeCause(this.cause)}`;

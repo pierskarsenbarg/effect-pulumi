@@ -5,7 +5,7 @@
  * builds, packs a real tarball, installs it into a throwaway consumer
  * project, and exercises it the way a user would. It is what stops the
  * dual ESM/CJS setup and the peerDependency arrangement from silently
- * regressing — none of which the source-level tests can see.
+ * regressing - none of which the source-level tests can see.
  *
  * Excluded from the default `npm test` (it builds and packs, so it is slow)
  * and run by `npm run test:package`, which `prepublishOnly` invokes.
@@ -30,7 +30,7 @@ const repoRoot = path.resolve(
 );
 const tscBin = localRequire.resolve("typescript/bin/tsc");
 
-/** Peers are not installed into the consumer project — they are symlinked
+/** Peers are not installed into the consumer project - they are symlinked
  * from the repo, exactly as a real install would hoist them. */
 const PEERS = ["effect", "@pulumi/pulumi"];
 
@@ -66,7 +66,7 @@ const write = (rel: string, body: string) => {
 };
 
 /** A consumer fixture that actually drives effectify, rather than just
- * importing it — this is what catches a duplicated @pulumi/pulumi, since
+ * importing it - this is what catches a duplicated @pulumi/pulumi, since
  * effectify detects resource constructors via `instanceof pulumi.Resource`. */
 const functionalBody = (kind: "esm" | "cjs") => {
   const imports =
@@ -304,7 +304,7 @@ describe("consumer type resolution", () => {
 
   it("actually enforces types under both conditions", () => {
     // If the declarations failed to resolve, these would silently pass as
-    // `any` — so the negative case is the real assertion.
+    // `any` - so the negative case is the real assertion.
     expect(runTsc(path.join(stage, "ts-esm-bad", "tsconfig.json"))).toMatch(
       /error TS/
     );

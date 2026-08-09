@@ -9,7 +9,7 @@ Pulumi.*.yaml
 
 # Compiled output belongs in dist/. A tsc invocation that misses an outDir
 # (or hits a rootDir error, which is non-fatal and still emits) drops .js and
-# .d.ts next to the .ts sources — never something to commit. All first-party
+# .d.ts next to the .ts sources - never something to commit. All first-party
 # source in these directories is TypeScript, so nothing legitimate is hidden.
 src/**/*.js
 src/**/*.d.ts

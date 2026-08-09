@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Superseded PR runs are worth cancelling; pushes to main are not — each one
+  # Superseded PR runs are worth cancelling; pushes to main are not - each one
   # is a distinct commit whose result should be recorded.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -23,7 +23,7 @@ jobs:
       # Report every failing version, not just the first.
       fail-fast: false
       matrix:
-        # 22 is the floor declared in engines — @pulumi/pulumi requires it.
+        # 22 is the floor declared in engines - @pulumi/pulumi requires it.
         node: ["22", "24"]
 
     steps:
@@ -41,7 +41,7 @@ jobs:
         run: npm run typecheck
 
       # oxlint and oxfmt are native binaries whose behaviour does not vary with
-      # the Node version, so this is redundant across the matrix — it stays in
+      # the Node version, so this is redundant across the matrix - it stays in
       # the same job anyway rather than costing a second checkout and install.
       - name: Lint
         run: npm run lint
@@ -66,21 +66,21 @@ jobs:
 
     # Gated on the whole `test` matrix passing. A real deploy is the slowest
     # thing in CI and the least useful signal on a build that is already
-    # broken: every failure `test` catches — a type error, a bad export, an
-    # unformatted file — would surface here as a confusing runtime error
+    # broken: every failure `test` catches - a type error, a bad export, an
+    # unformatted file - would surface here as a confusing runtime error
     # instead. Skipping keeps the first red mark on the job that explains it.
     needs: test
 
     env:
       # This job deploys for real, but needs no credentials: state goes to a
       # self-managed file backend on the runner (PULUMI_BACKEND_URL, set from
-      # $RUNNER_TEMP below — the `runner` context is not available in job-level
+      # $RUNNER_TEMP below - the `runner` context is not available in job-level
       # env), and both examples use @pulumi/random, whose provider needs no
       # cloud account. That is what lets it run on forked PRs, where secrets
       # are absent.
       #
       # The file backend encrypts secrets with a passphrase and both examples
-      # emit a RandomPassword. The value is throwaway — the state is discarded
+      # emit a RandomPassword. The value is throwaway - the state is discarded
       # with the runner.
       PULUMI_CONFIG_PASSPHRASE: ci
       # Per-run name; the two examples are separate projects, so they don't
@@ -98,7 +98,7 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # No `command` input — that is the action's documented install-only
+      # No `command` input - that is the action's documented install-only
       # mode, which is all this job wants from it.
       - uses: pulumi/actions@v7
 
@@ -114,25 +114,25 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Automation API example — deploy
+      - name: Automation API example - deploy
         run: npm run start -w effect-pulumi-automation-random-pet
 
       # `if: always()` so a failed deploy still tears down, and best-effort so
       # teardown cannot bury the real error with a second, derivative failure.
       # The trade-off is that a genuine regression in destroy shows up only in
       # this step's log, not in the job's status.
-      - name: Automation API example — destroy
+      - name: Automation API example - destroy
         if: always()
         continue-on-error: true
         run: npm run destroy -w effect-pulumi-automation-random-pet
 
-      - name: random-pet example — deploy
+      - name: random-pet example - deploy
         working-directory: examples/random-pet
         run: |
           pulumi stack init "$PULUMI_STACK_NAME"
           pulumi up --yes
 
-      - name: random-pet example — destroy
+      - name: random-pet example - destroy
         if: always()
         continue-on-error: true
         working-directory: examples/random-pet
@@ -142,7 +142,7 @@ jobs:
 
       # Unlike the two examples above, this deploys and destroys inside a
       # single vitest test (Effect.acquireRelease + Effect.scoped, so teardown
-      # runs even if the deploy or an assertion fails) — one step is enough,
+      # runs even if the deploy or an assertion fails) - one step is enough,
       # no paired destroy step or continue-on-error needed. It picks its own
       # stack name at runtime, so it doesn't collide with $PULUMI_STACK_NAME
       # above, and needs only the backend env already set for this job.

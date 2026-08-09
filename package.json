@@ -1,7 +1,7 @@
 {
   "name": "effect-pulumi",
   "version": "0.1.0",
-  "description": "Effect bindings for Pulumi — wrap a provider package once and get Effect-returning resource factories, typed errors, and structured deploy results.",
+  "description": "Effect bindings for Pulumi - wrap a provider package once and get Effect-returning resource factories, typed errors, and structured deploy results.",
   "keywords": [
     "effect",
     "effect-ts",
