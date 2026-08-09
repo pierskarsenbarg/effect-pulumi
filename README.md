@@ -87,9 +87,16 @@ export const { id, key } = await Effect.runPromise(program);
 ```
 
 Alternatively, hand `program` to the [Automation API](#automation-api) as an
-inline program and deploy it from the same process. The full version of this
-example — deployed for real by `npm run test:live` — lives in
-[`examples/s3-bucket.ts`](examples/s3-bucket.ts).
+inline program and deploy it from the same process.
+
+The full version of the program above lives in
+[`test/s3-bucket-program.ts`](test/s3-bucket-program.ts). It sits in `test/`
+rather than `examples/` because it is a fixture rather than a project you can
+run: two suites share it, the mocked one in `npm test` and the live one in
+`npm run test:live`. For examples you can actually deploy, see
+[`examples/`](examples/) — though those use `@pulumi/random`, whose resources
+take no inputs from one another, so they do not show `fromOutput` or an Effect
+in an args slot.
 
 ## What `effectify` does
 
@@ -261,7 +268,7 @@ resource, or `Effect.exit` / `runPromiseExit` at the edge to inspect the full
 | `npm run check` | `typecheck` + `lint` + `format:check`, the pre-commit sweep |
 | `npm test` | Unit + mocked-provider tests. No credentials needed |
 | `npm run test:package` | Builds, packs a tarball and consumes it from ESM and CJS projects |
-| `npm run test:live` | Deploys `examples/s3-bucket.ts` for real, then destroys it |
+| `npm run test:live` | Deploys `test/s3-bucket-program.ts` against real AWS, then destroys it |
 
 `npm test` never runs the live harness: it's excluded in `vitest.config.ts`
 and additionally gated on `EFFECT_PULUMI_RUN_LIVE_TESTS=1`. The live harness

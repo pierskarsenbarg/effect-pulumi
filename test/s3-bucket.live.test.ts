@@ -2,16 +2,16 @@ import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import { Effect } from "effect";
 import { deploy, teardownStack } from "../src/index.js";
-import { inlineProgram } from "../examples/s3-bucket.js";
+import { inlineProgram } from "./s3-bucket-program.js";
 
 // Gate: only run when explicitly opted in, since this hits a real cloud
 // account and needs live credentials in the environment.
 const liveTestsEnabled = process.env.EFFECT_PULUMI_RUN_LIVE_TESTS === "1";
 const describeLive = liveTestsEnabled ? describe : describe.skip;
 
-describeLive("examples (live, real Automation API deploy)", () => {
+describeLive("s3-bucket program (live, real Automation API deploy)", () => {
   it.effect(
-    "s3-bucket example deploys, resolves outputs, and tears down cleanly",
+    "deploys against real AWS, resolves outputs, and tears down cleanly",
     () => {
       // Unique per run so repeated/parallel runs don't collide on stack
       // name — swap for whatever naming convention fits your CI.

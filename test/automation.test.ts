@@ -7,7 +7,7 @@
  * of that is covered here without a Pulumi CLI.
  *
  * What this deliberately cannot prove: that the real Automation API accepts
- * the arguments we pass it. Only test/examples.live.test.ts does that, and it
+ * the arguments we pass it. Only test/s3-bucket.live.test.ts does that, and it
  * needs a CLI and a backend.
  */
 import { beforeEach, describe, expect, vi } from "vitest";
