@@ -156,6 +156,28 @@ when it lacks an `outDir` — and `rootDir` errors are non-fatal, so it emits
 anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
 `test/` or `examples/`, delete them rather than committing them.
 
+## Releasing
+
+Push a semver tag to publish: `git tag v1.2.3 && git push origin v1.2.3`.
+`.github/workflows/publish.yml` triggers on `v[0-9]+.[0-9]+.[0-9]+`, re-runs
+the full `prepublishOnly` gate (typecheck, lint, format, test, build,
+packaging suite) as explicit steps, then runs `npm publish` with provenance
+and creates a GitHub Release with auto-generated notes.
+
+**The tag is authoritative for the published version, not the committed
+`package.json`.** The workflow derives the version from the tag and writes it
+into `package.json` in the CI checkout right before publishing
+(`npm version <tag> --no-git-tag-version --allow-same-version`) — that edit is
+never committed or pushed back. There is no separate "bump package.json"
+step; the repo's committed version can lag behind the last published release.
+
+Publishing needs an `NPM_TOKEN` repo secret — an npm **Automation** token
+(not "Publish", which still prompts for a 2FA OTP that nothing in CI can
+answer). npm's tokenless "Trusted Publishing" (OIDC) isn't used here: it's
+configured on a package's npmjs.com Settings page, which can't exist before a
+first publish, and npm's docs don't confirm it works for one. Worth adopting
+later, once the package exists on the registry.
+
 ## Known gaps
 
 - **`automation.ts`'s unit tests mock `LocalWorkspace`,** so they prove
