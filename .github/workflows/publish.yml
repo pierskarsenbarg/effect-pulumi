@@ -63,14 +63,21 @@ jobs:
 
     permissions:
       contents: write # to create the GitHub Release
-      id-token: write # for npm provenance
+      id-token: write # for OIDC trusted publishing (npm >=11.5.1)
 
     steps:
       - uses: actions/checkout@v7
 
+      # Trusted publishing needs npm >=11.5.1. Node 22's bundled npm (10.9.8
+      # as of writing) doesn't meet that; Node 24's (11.17.0) does - checked
+      # against nodejs.org's release index rather than pinned with an extra
+      # `npm install -g`, so this job stays on whatever npm actually ships
+      # with Node 24. `test` deliberately stays on Node 22: that job exists
+      # to validate the `engines.node: ">=22"` floor, which is a different
+      # concern from what `publish` needs to authenticate.
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           registry-url: "https://registry.npmjs.org"
 
@@ -85,10 +92,13 @@ jobs:
       # `npm publish` re-runs `prepublishOnly` (check+test+test:package)
       # itself as a redundant safety net - `needs: test` above is what
       # actually gates whether this job runs at all.
+      #
+      # No token: this authenticates via OIDC trusted publishing (registered
+      # on npmjs.com for this repo + workflow filename), not NODE_AUTH_TOKEN.
+      # Provenance is automatic under trusted publishing, so --provenance is
+      # no longer passed explicitly.
       - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Create GitHub Release
         run: gh release create "$GITHUB_REF_NAME" --generate-notes

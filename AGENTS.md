@@ -161,8 +161,9 @@ anyway. `.gitignore` covers this; if you see stray artifacts in `src/`,
 Push a semver tag to publish: `git tag v1.2.3 && git push origin v1.2.3`.
 `.github/workflows/publish.yml` triggers on `v[0-9]+.[0-9]+.[0-9]+`, re-runs
 the full `prepublishOnly` gate (typecheck, lint, format, test, build,
-packaging suite) as explicit steps, then runs `npm publish` with provenance
-and creates a GitHub Release with auto-generated notes.
+packaging suite) as explicit steps in a `test` job, then a `publish` job
+(`needs: test`) runs `npm publish` and creates a GitHub Release with
+auto-generated notes.
 
 **The tag is authoritative for the published version, not the committed
 `package.json`.** The workflow derives the version from the tag and writes it
@@ -171,30 +172,24 @@ into `package.json` in the CI checkout right before publishing
 never committed or pushed back. There is no separate "bump package.json"
 step; the repo's committed version can lag behind the last published release.
 
-Publishing needs an `NPM_TOKEN` repo secret - an npm **Automation** token
-(not "Publish", which still prompts for a 2FA OTP that nothing in CI can
-answer). npm's tokenless "Trusted Publishing" (OIDC) isn't used yet - it's
-configured on a package's npmjs.com Settings page, which couldn't exist
-before a first publish. `effect-pulumi@0.1.0` is live on npm now, so that's
-unblocked; migrating is a two-part, deliberately ordered change:
+**Publishing authenticates via npm's OIDC Trusted Publishing, not a stored
+token.** `id-token: write` on the `publish` job is what makes that possible;
+the trusted publisher itself is registered on npmjs.com (package page ->
+Settings -> Trusted publishing: org/user `pierskarsenbarg`, repository
+`effect-pulumi`, workflow filename `publish.yml`, allowed actions
+`npm publish`) - not something visible from this repo. This needed the
+package to already exist on the registry, which is why the very first
+release (`v0.1.0`) went out on a classic `NPM_TOKEN` secret instead; that
+secret is kept, unused, as a rollback until an OIDC-authenticated publish has
+actually succeeded on a real tag - not deleted preemptively.
 
-1. **Manual, on npmjs.com** (not automatable - no API access to the account):
-   package page -> Settings -> Trusted publishing -> add a publisher with
-   organization/user `pierskarsenbarg`, repository `effect-pulumi`, workflow
-   filename `publish.yml` (filename only), allowed actions `npm publish`.
-2. **Workflow, only after step 1 is done**: drop `NODE_AUTH_TOKEN` from the
-   "Publish to npm" step (`id-token: write` is already there, added for
-   provenance - same permission OIDC needs); add `npm install -g npm@latest`
-   before publishing, since trusted publishing needs npm CLI >=11.5.1 and
-   nothing currently pins that explicitly; `--provenance` becomes automatic
-   and can be dropped.
-
-Doing step 2 before step 1 breaks the next release - there would be nowhere
-for the OIDC token to authenticate against. Verify by watching the *next* tag
-push after merging step 2, not the workflow syntax alone; if it fails,
-`NPM_TOKEN` still works until it's deleted, so the rollback is a one-line
-revert. Don't delete the secret until one OIDC-authenticated publish has
-actually succeeded.
+Trusted publishing needs npm CLI >=11.5.1. That's why `publish` runs on Node
+24 while `test` stays on Node 22: Node 22's bundled npm (10.9.8 as of
+writing, confirmed against nodejs.org's release index) doesn't clear that
+bar, Node 24's (11.17.0) does, and `test` is deliberately validating the
+`engines.node: ">=22"` floor - a different concern from what `publish` needs
+in order to authenticate. Provenance is automatic under trusted publishing,
+so `npm publish` no longer passes `--provenance` explicitly.
 
 ## Known gaps
 
