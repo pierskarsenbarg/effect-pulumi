@@ -46,6 +46,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",

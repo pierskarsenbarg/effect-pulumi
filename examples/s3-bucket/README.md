@@ -10,16 +10,17 @@
 
  ## Getting Started
 
- 1. Initialize a new Pulumi project:
+ 1. Install and build from the repository root:
 
     ```bash
-    pulumi new aws-typescript
+    npm install
     ```
 
-    Follow the prompts to set your:
-    - Project name
-    - Project description
-    - AWS region (defaults to `us-east-1`)
+    This example imports `effect-pulumi` by name and resolves it through the
+    npm workspace link, which points at the package's `dist/` — gitignored, so
+    it has to be built. `npm install` does it via the `prepare` script; run
+    `npm run build` directly if `dist/` goes missing. Without it `pulumi up`
+    fails with `TS2307: Cannot find module 'effect-pulumi'`.
 
  2. Preview and deploy your infrastructure:
 
