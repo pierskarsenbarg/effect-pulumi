@@ -86,6 +86,41 @@ const program = Effect.gen(function* () {
 export const { id, key } = await Effect.runPromise(program);
 ```
 
+Pulumi's TypeScript programs default to CommonJS (no `"type": "module"` in
+`package.json`), where top-level `await` isn't available. `fromOutput` and
+`fromOutputs` resolve an Output's real value, which is genuinely
+asynchronous, so `Effect.runSync` isn't an option here either - it throws on
+any effect that suspends on real async work. Export the Promise itself
+instead; Pulumi's engine awaits an exported Promise the same way it would an
+awaited value:
+
+```ts
+const aws = require("@pulumi/aws");
+const { Effect } = require("effect");
+const { effectify, fromOutput, fromOutputs } = require("effect-pulumi");
+
+const eaws = effectify(aws);
+
+const program = Effect.gen(function* () {
+  const bucket = yield* eaws.s3.Bucket("assets", { forceDestroy: true });
+
+  const object = yield* eaws.s3.BucketObject("readme", {
+    bucket: fromOutput(bucket.id),
+    key: "readme.txt",
+    content: "hello",
+  });
+
+  return yield* fromOutputs({ id: bucket.id, key: object.key });
+});
+
+module.exports = Effect.runPromise(program);
+```
+
+`Effect.runSync` does work for programs that never resolve an Output's value
+- e.g. [`examples/random-pet`](examples/random-pet), which exports raw
+`Output`s from resource properties directly rather than reading through them
+with `fromOutput`.
+
 Alternatively, hand `program` to the [Automation API](#automation-api) as an
 inline program and deploy it from the same process.
 
