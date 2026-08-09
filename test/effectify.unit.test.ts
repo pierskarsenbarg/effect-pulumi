@@ -2,6 +2,7 @@ import { describe, expect } from "vitest";
 import { it } from "@effect/vitest";
 import * as pulumi from "@pulumi/pulumi";
 import { Deferred, Effect, Exit } from "effect";
+import type { Effectify } from "../src/index.js";
 import {
   effectify,
   fromOutput,
@@ -599,6 +600,97 @@ describe("effectify — type level", () => {
       void infoEffect;
       // …while sync helpers keep their plain signature.
       const _plain: string = eprovider.storage.getThing("typed");
+    })
+  );
+});
+
+// ---------------------------------------------------------------------------
+// `Effectify<T>` used by name.
+//
+// The checks above all go through `eprovider`, so they only ever exercise the
+// type as *inferred* from `effectify(...)`. `Effectify<T>` is exported for the
+// case that inference cannot cover — naming the type of an already-wrapped
+// package, so it can be annotated, passed to a helper, or stored on an
+// interface. Nothing else in the repo used it by name, so nothing caught a
+// regression in that use.
+// ---------------------------------------------------------------------------
+
+/** Invariant type equality — `extends` alone would accept a wider or narrower
+ * type on either side, which is exactly the kind of drift worth catching. */
+type Equals<A, B> =
+  (<G>() => G extends A ? 1 : 2) extends <G>() => G extends B ? 1 : 2
+    ? true
+    : false;
+
+type Assert<T extends true> = T;
+
+type FakeProvider = typeof fakeProvider;
+
+// The annotation is the assertion: it fails to compile if `effectify`'s return
+// type and `Effectify<T>` ever drift apart.
+const annotated: Effectify<FakeProvider> = effectify(fakeProvider);
+
+/** The reason the type is exported: a helper that takes an already-wrapped
+ * package instead of wrapping one itself. */
+const makeBucket = (p: Effectify<FakeProvider>, name: string) =>
+  p.storage.FakeBucket(name, { bucketName: `${name}-bucket` });
+
+type _AcceptsWrappedPackage = Assert<
+  Equals<ReturnType<typeof makeBucket>, Effect.Effect<FakeBucket, PulumiError>>
+>;
+
+// Namespaces are mapped recursively rather than left as-is.
+type _CustomIsLifted = Assert<
+  Equals<
+    Parameters<Effectify<FakeProvider>["storage"]["FakeBucket"]>[1],
+    {
+      readonly bucketName:
+        | pulumi.Input<string>
+        | Effect.Effect<pulumi.Input<string>, PulumiError>;
+      readonly region?:
+        | pulumi.Input<string>
+        | Effect.Effect<pulumi.Input<string> | undefined, PulumiError>;
+      readonly explode?:
+        | boolean
+        | Effect.Effect<boolean | undefined, PulumiError>;
+    }
+  >
+>;
+
+// Component args are passed through untouched — the asymmetry that makes
+// `LiftedArgs` apply to one branch of the mapping and not the other.
+type _ComponentIsNotLifted = Assert<
+  Equals<
+    Parameters<Effectify<FakeProvider>["compute"]["FakeStack"]>[1],
+    FakeStackArgs
+  >
+>;
+
+// A Promise-returning invoke is rewritten; a synchronous one is not.
+type _InvokeBecomesEffect = Assert<
+  Equals<
+    ReturnType<Effectify<FakeProvider>["storage"]["getThingInfo"]>,
+    Effect.Effect<{ name: string; tier: string }, PulumiError>
+  >
+>;
+
+type _SyncFunctionUnchanged = Assert<
+  Equals<Effectify<typeof getThing>, typeof getThing>
+>;
+
+// Plain values and enum-like objects survive the mapping unchanged.
+type _PlainValueUnchanged = Assert<
+  Equals<Effectify<FakeProvider>["version"], string>
+>;
+
+describe("effectify — Effectify<T> by name", () => {
+  it.effect("annotating with Effectify<T> yields a working wrapper", () =>
+    Effect.gen(function* () {
+      // The type-level assertions above are the point of this section; this
+      // runs the annotated value once so the section cannot rot into a block
+      // of types that no longer corresponds to anything executable.
+      const bucket = yield* makeBucket(annotated, "by-name");
+      expect(yield* fromOutput(bucket.bucketName)).toBe("by-name-bucket");
     })
   );
 });
