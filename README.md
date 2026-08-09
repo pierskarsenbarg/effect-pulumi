@@ -145,3 +145,7 @@ stack registered, while `teardownStack` destroys and then deletes it - the
 latter is what per-run stacks want. Avoid `RemoveOptions.force`, which drops
 a stack while leaving its resources alive and billing with nothing tracking
 them.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
