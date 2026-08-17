@@ -2,7 +2,7 @@
   "name": "effect-random-pet",
   "main": "index.ts",
   "devDependencies": {
-    "@types/node": "^26",
+    "@types/node": "^26.2.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {
