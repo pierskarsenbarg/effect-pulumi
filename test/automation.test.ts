@@ -55,6 +55,9 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@pulumi/pulumi/automation/index.js", () => {
+  // vi.mock factories are hoisted above every module-scope binding except
+  // `vi.hoisted`, so this can't move to the outer scope the rule suggests.
+  // oxlint-disable-next-line unicorn/consistent-function-scoping
   const record = (name: Stage, opts?: unknown) => {
     h.calls.push(name);
     h.passed[name] = opts;
