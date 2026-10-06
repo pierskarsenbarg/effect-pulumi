@@ -40,7 +40,9 @@ npm install effect-pulumi
 ```
 
 Requires Node.js ≥ 22 (the floor `@pulumi/pulumi` itself sets). The peer
-ranges are `@pulumi/pulumi ^3.0.0` and `effect ^3.0.0`.
+ranges are `@pulumi/pulumi ^3.0.0` and `effect ^4.0.0`. Projects still on
+Effect 3 should stay on `effect-pulumi@0.1.2`, the last release that supports
+it.
 
 `@pulumi/pulumi` and `effect` are peer dependencies - this library extends
 your Pulumi and Effect runtimes, so it must use the same copies you do rather
