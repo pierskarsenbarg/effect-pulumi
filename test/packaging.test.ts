@@ -58,6 +58,20 @@ const runTsc = (project: string, extraArgs: string[] = []): string => {
   }
 };
 
+const readDist = (file: string) =>
+  fs.readFileSync(path.join(pkgDir, "dist", file), "utf8");
+
+/** Which of our declaration files tsc resolved for the given consumer. */
+const resolvedDecls = (dir: string) => {
+  const trace = runTsc(path.join(stage, dir, "tsconfig.json"), [
+    "--traceResolution",
+  ]);
+  const hit = [
+    ...trace.matchAll(/effect-pulumi[/\\]dist[/\\](index\.d\.[cm]?ts)/g),
+  ];
+  return new Set(hit.map((m) => m[1]));
+};
+
 const write = (rel: string, body: string) => {
   const abs = path.join(stage, rel);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
@@ -256,17 +270,14 @@ describe("manifest", () => {
 });
 
 describe("bundle externals", () => {
-  const refs = (file: string) =>
-    fs.readFileSync(path.join(pkgDir, "dist", file), "utf8");
-
   it("imports the peers rather than inlining them (ESM)", () => {
-    const src = refs("index.js");
+    const src = readDist("index.js");
     expect(src).toMatch(/from\s*['"]effect['"]/);
     expect(src).toMatch(/from\s*['"]@pulumi\/pulumi['"]/);
   });
 
   it("requires the peers rather than inlining them (CJS)", () => {
-    const src = refs("index.cjs");
+    const src = readDist("index.cjs");
     expect(src).toMatch(/require\(\s*['"]effect['"]\s*\)/);
     expect(src).toMatch(/require\(\s*['"]@pulumi\/pulumi['"]\s*\)/);
   });
@@ -314,16 +325,7 @@ describe("consumer type resolution", () => {
   }, 180_000);
 
   it("resolves ESM to index.d.ts and CJS to index.d.cts", () => {
-    const resolved = (dir: string) => {
-      const trace = runTsc(path.join(stage, dir, "tsconfig.json"), [
-        "--traceResolution",
-      ]);
-      const hit = [
-        ...trace.matchAll(/effect-pulumi[/\\]dist[/\\](index\.d\.[cm]?ts)/g),
-      ];
-      return new Set(hit.map((m) => m[1]));
-    };
-    expect(resolved("ts-esm")).toEqual(new Set(["index.d.ts"]));
-    expect(resolved("ts-cjs")).toEqual(new Set(["index.d.cts"]));
+    expect(resolvedDecls("ts-esm")).toEqual(new Set(["index.d.ts"]));
+    expect(resolvedDecls("ts-cjs")).toEqual(new Set(["index.d.cts"]));
   }, 180_000);
 });

@@ -128,9 +128,11 @@ recognised as a test block, so all 108 assertions look standalone),
 follows `target: ES2022`, so it wouldn't type-check).
 
 **Prefer an inline `oxlint-disable-next-line` with a reason** over a new
-`"off"` entry when a single site is the exception. Two exist today, both in
+`"off"` entry when a single site is the exception. Three exist today, all in
 `test/`: the component-constructor fixture that throws before its required
-`super()`, and the live test's inline `onOutput`.
+`super()`, the live test's inline `onOutput`, and the `record` helper inside
+`automation.test.ts`'s `vi.mock` factory (`consistent-function-scoping` wants
+it hoisted, but the factory runs before module-scope bindings exist).
 
 ## Testing conventions
 
