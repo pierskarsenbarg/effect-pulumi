@@ -15,6 +15,8 @@ updates:
       - dependency-name: "*"
         update-types:
           - version-update:semver-patch
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"] # Skip version 7 and above
 
     groups:
       # @pulumi/aws is regenerated from the AWS provider constantly (often
