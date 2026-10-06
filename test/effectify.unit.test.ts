@@ -422,10 +422,12 @@ describe("effectify - Effect-valued arg auto-lifting (CustomResource)", () => {
           region: Deferred.succeed(latch, void 0).pipe(Effect.as("eu-west-2")),
         })
         .pipe(
-          Effect.timeoutFail({
+          Effect.timeoutOrElse({
             duration: "5 seconds",
-            onTimeout: () =>
-              new PulumiError({ cause: "args resolved sequentially" }),
+            orElse: () =>
+              Effect.fail(
+                new PulumiError({ cause: "args resolved sequentially" })
+              ),
           })
         );
 

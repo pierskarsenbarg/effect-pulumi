@@ -61,7 +61,7 @@
   },
   "peerDependencies": {
     "@pulumi/pulumi": "^3.0.0",
-    "effect": "^3.0.0"
+    "effect": "^4.0.0"
   },
   "workspaces": [
     ".",
@@ -69,12 +69,12 @@
     "examples/automation-api-random-pet"
   ],
   "devDependencies": {
-    "@effect/vitest": "^0.30.0",
+    "@effect/vitest": "^4.0.0",
     "@pulumi/aws": "^7.40.0",
     "@pulumi/local": "^0.1.6",
     "@pulumi/pulumi": "^3.256.0",
     "@pulumi/random": "^4.21.1",
-    "effect": "^3.22.1",
+    "effect": "^4.0.0",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.77.0",
     "tsdown": "^0.23.0",
