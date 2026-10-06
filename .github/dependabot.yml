@@ -9,6 +9,8 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - dependencies
+    assignees:
+      - pierskarsenbarg
 
     groups:
       # @pulumi/aws is regenerated from the AWS provider constantly (often
@@ -44,3 +46,5 @@ updates:
       day: monday
     labels:
       - dependencies
+    assignees:
+      - pierskarsenbarg
