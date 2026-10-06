@@ -136,14 +136,12 @@ it hoisted, but the factory runs before module-scope bindings exist).
 
 ## Testing conventions
 
-**The `@effect/vitest` override is load-bearing.** `@effect/vitest@0.30.0`
-still declares `peer vitest@^3.2.0`, so installing vitest 4 fails `npm install`
-with ERESOLVE. The `overrides` entry in `package.json` points that peer at the
-root's own vitest spec (`$vitest`); the whole suite passes on vitest 4, the
-range is just stale upstream. Drop the override once a stable `@effect/vitest`
-accepts vitest 4 on `effect@3` - the `4.0.0-beta` line does, but it requires
-`effect@4.0.0-beta`. `overrides` only applies to the root project, so it never
-reaches consumers of the published package.
+**The `@effect/vitest` override in `package.json` is now redundant.**
+`@effect/vitest@4.0.1` peers `vitest >=5 <6` and `effect ^4.0.1`, which the
+root's `vitest ^5` and `effect ^4` satisfy; an install with the override
+removed resolves cleanly. It was added for `@effect/vitest@0.30.0` (peer
+`vitest@^3.2.0`, on `effect@3`) and can be deleted. `overrides` only applies to
+the root project, so it never reaches consumers of the published package.
 
 **Mutation-test new guards.** A test that can't go red is worth nothing.
 After adding a regression guard, reintroduce the bug, confirm the test fails,
@@ -201,8 +199,10 @@ so `npm publish` no longer passes `--provenance` explicitly.
   that part by deploying `examples/automation-api-random-pet` for real; what
   remains uncovered there is any behaviour specific to a cloud provider or the
   Pulumi Cloud backend.
-- **Peer ranges (`^3.0.0`) are an untested claim.** Verified against
-  `@pulumi/pulumi` 3.254 and `effect` 3.22 only.
+- **Peer ranges are an untested claim.** `effect` is `^4.0.0` and the suite
+  runs against 4.0.1 only; the previous `^3.0.0` range is no longer supported
+  (Effect 4 removed APIs such as `Effect.timeoutFail`). `@pulumi/pulumi`
+  (`^3.0.0`) is verified against 3.254 and later only.
 - **Nothing in CI, or in `npm run test:live`, exercises a real cloud
   provider.** `test/random-password-file-program.ts` - the live fixture -
   moved from `@pulumi/aws` to `@pulumi/random` + `@pulumi/local` so it needs
