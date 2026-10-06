@@ -45,7 +45,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "oxlint",
@@ -72,12 +72,12 @@
     "@effect/vitest": "^0.30.0",
     "@pulumi/aws": "^7.40.0",
     "@pulumi/local": "^0.1.6",
-    "@pulumi/random": "^4.21.1",
     "@pulumi/pulumi": "^3.256.0",
+    "@pulumi/random": "^4.21.1",
     "effect": "^3.22.1",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.77.0",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.0"
   },
@@ -85,6 +85,5 @@
     "@effect/vitest": {
       "vitest": "$vitest"
     }
-  },
-  "dependencies": {}
+  }
 }

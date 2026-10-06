@@ -29,7 +29,7 @@ dependencies.
 | `npm run lint` | oxlint. `lint:fix` applies the safe fixes |
 | `npm run format` | oxfmt, in place. `format:check` asserts instead |
 | `npm run check` | typecheck + lint + format:check in one go |
-| `npm run build` | tsup → dual ESM/CJS + declarations in `dist/` |
+| `npm run build` | tsdown → dual ESM/CJS + declarations in `dist/` |
 | `npm run test:package` | Builds, packs, consumes the tarball. ~16s |
 | `npm run test:live` | Real Automation API deploy via `@pulumi/random` + `@pulumi/local`. Needs the Pulumi CLI, no cloud credentials |
 
@@ -48,12 +48,12 @@ precisely because nothing else in the toolchain catches it.
 
 **Two tsconfigs, different jobs.** `tsconfig.json` type-checks `src` +
 `examples` + `test` and emits nothing. `tsconfig.build.json` is scoped to
-`src` with an explicit `rootDir`, and tsup uses it for declarations. Adding
+`src` with an explicit `rootDir`, and tsdown uses it for declarations. Adding
 tests to the build config leaks them into the published types; pinning
 `rootDir` in the type-check config is a hard error (TS6059).
 
 **Never move `@pulumi/pulumi` or `effect` out of `peerDependencies`,** and
-never let tsup inline them (they're pinned in `external`). `effectify` detects
+never let tsdown inline them (they're pinned in `external`). `effectify` detects
 resource constructors with `prototype instanceof pulumi.Resource` - a second
 copy of `@pulumi/pulumi` in the tree makes that silently return `false` for
 every constructor, so resources pass through unwrapped with no error.
@@ -150,7 +150,7 @@ After adding a regression guard, reintroduce the bug, confirm the test fails,
 then revert. Commit first so `git checkout -- <file>` is the restore path - a
 `/tmp` backup can be stranded by an interruption.
 
-**The packaging suite asserts on the artifact, not on tsup.** Keep it that
+**The packaging suite asserts on the artifact, not on tsdown.** Keep it that
 way; swapping build tools should be validated by it, not blocked by it.
 
 **Don't commit compiled output.** `tsc` emits `.js`/`.d.ts` next to sources
